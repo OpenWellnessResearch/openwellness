@@ -6,7 +6,6 @@ from .cb_base_repository import CBBaseRepository
 from .cb_card_repository import CBCardRepository
 from .cb_condition_repository import CBConditionRepository
 from .cb_conversation_repository import CBConversationRepository
-from .cb_cpap_session_repository import CBCPAPSessionRepository
 from .cb_daily_state_repository import CBDailyStateRepository
 from .cb_fitbit_heart_record_repository import CBFitbitHeartRecordRepository
 from .cb_fitbit_record_repository import CBFitbitRecordRepository

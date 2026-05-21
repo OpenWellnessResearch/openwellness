@@ -8,7 +8,6 @@ from .base_crud_repository import BaseCrudRepository
 from .card_repository import CardRepository
 from .condition_repository import ConditionRepository
 from .conversation_repository import ConversationRepository
-from .cpap_session_repository import CPAPSessionRepository
 from .daily_state_repository import DailyStateRepository
 from .device_repository import DeviceRepository
 from .fetchable_by_study_repository import FetchableByStudyRepository

@@ -7,7 +7,6 @@ from .cb_base_owner_entity import CBBaseOwnerEntity
 from .cb_card import CBCard
 from .cb_condition import CBCondition, CBLegacyCondition, CBWeightCondition
 from .cb_conversation import CBConversation, CBMessage, CBMessageDraft
-from .cb_cpap_session import CBCPAPSession
 from .cb_daily_state import CBDailyState
 from .cb_fitbit import (
     CBFitbitHeartRecord,

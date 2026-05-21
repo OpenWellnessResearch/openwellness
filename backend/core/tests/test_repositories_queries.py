@@ -32,9 +32,6 @@ from openwellness_core.adapters.couchbase.repositories.cb_condition_repository i
 from openwellness_core.adapters.couchbase.repositories.cb_conversation_repository import (
     CBConversationRepository,
 )
-from openwellness_core.adapters.couchbase.repositories.cb_cpap_session_repository import (
-    CBCPAPSessionRepository,
-)
 from openwellness_core.adapters.couchbase.repositories.cb_daily_state_repository import (
     CBDailyStateRepository,
 )
@@ -623,17 +620,6 @@ def test_fitbit_record_parameterized(fake_repo):
 def test_daily_state_parameterized(fake_repo):
     CBDailyStateRepository(fake_repo).get_for_owner_between(
         'p" inject', arrow.Arrow(2024, 1, 1), arrow.Arrow(2024, 1, 2)
-    )
-    _assert_no_injection(
-        fake_repo.last_query or "",
-        fake_repo.last_params or {},
-        'p" inject',
-    )
-
-
-def test_cpap_session_parameterized(fake_repo):
-    CBCPAPSessionRepository(fake_repo).get_for_owner(
-        'p" inject', arrow.Arrow(2024, 1, 1)
     )
     _assert_no_injection(
         fake_repo.last_query or "",
