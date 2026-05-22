@@ -6,23 +6,23 @@ core domain fields intact.
 """
 
 from bson import ObjectId
-from core.adapters.couchbase.model import (
+from src.core.adapters.couchbase.model import (
     CBBaseOwnerEntity,
     CBGoal,
     CBParticipantGroup,
     CBWeight,
 )
-from core.adapters.mongo.model import (
+from src.core.adapters.mongo.model import (
     MongoStudy,
     MongoUser,
 )
-from core.domain.models.base_entity import BaseEntity
-from core.domain.models.base_owner_entity import BaseOwnerEntity
-from core.domain.models.goal import Goal
-from core.domain.models.participant_group import ParticipantGroup
-from core.domain.models.study import Study
-from core.domain.models.user import User
-from core.domain.models.weight import Weight
+from src.core.domain.models.base_entity import BaseEntity
+from src.core.domain.models.base_owner_entity import BaseOwnerEntity
+from src.core.domain.models.goal import Goal
+from src.core.domain.models.participant_group import ParticipantGroup
+from src.core.domain.models.study import Study
+from src.core.domain.models.user import User
+from src.core.domain.models.weight import Weight
 
 
 def _cb_roundtrip(persistence_cls, domain_cls, domain_instance):
