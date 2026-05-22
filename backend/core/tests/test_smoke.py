@@ -6,24 +6,23 @@ core domain fields intact.
 """
 
 from bson import ObjectId
-
-from openwellness_core.adapters.couchbase.model import (
+from core.adapters.couchbase.model import (
     CBBaseOwnerEntity,
     CBGoal,
     CBParticipantGroup,
     CBWeight,
 )
-from openwellness_core.adapters.mongo.model import (
+from core.adapters.mongo.model import (
     MongoStudy,
     MongoUser,
 )
-from openwellness_core.domain.models.base_entity import BaseEntity
-from openwellness_core.domain.models.base_owner_entity import BaseOwnerEntity
-from openwellness_core.domain.models.goal import Goal
-from openwellness_core.domain.models.participant_group import ParticipantGroup
-from openwellness_core.domain.models.study import Study
-from openwellness_core.domain.models.user import User
-from openwellness_core.domain.models.weight import Weight
+from core.domain.models.base_entity import BaseEntity
+from core.domain.models.base_owner_entity import BaseOwnerEntity
+from core.domain.models.goal import Goal
+from core.domain.models.participant_group import ParticipantGroup
+from core.domain.models.study import Study
+from core.domain.models.user import User
+from core.domain.models.weight import Weight
 
 
 def _cb_roundtrip(persistence_cls, domain_cls, domain_instance):
@@ -150,8 +149,8 @@ def test_mongo_persistence_owns_collection_routing():
 
 
 def test_archive_is_on_base_repository_interface():
-    """`archive` and `unarchive` are base-repository concerns, not domain concerns."""
-    from openwellness_core.application.repositories.base_crud_repository import (
+    """`archive` is a base-repository concern, not a domain concern."""
+    from core.application.repositories.base_crud_repository import (
         BaseCrudRepository,
     )
 

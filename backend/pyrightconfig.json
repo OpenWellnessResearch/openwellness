@@ -1,8 +1,8 @@
 {
-  "include": ["src"],
+  "include": ["core/src"],
   "exclude": ["**/__pycache__", ".venv"],
   "pythonVersion": "3.12",
-  "venvPath": ".",
+  "venvPath": "..",
   "venv": ".venv",
   "reportMissingImports": "warning",
   "reportIncompatibleMethodOverride": "warning",

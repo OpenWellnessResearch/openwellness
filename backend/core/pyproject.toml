@@ -1,5 +1,5 @@
 [project]
-name = "openwellness-core"
+name = "ope-well-ba-core"
 version = "0.1.0"
 description = "Shared domain models, repository interfaces, and persistence adapters for OpenWellness."
 readme = "README.md"
@@ -24,4 +24,4 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/openwellness_core"]
+packages = ["src/core"]
