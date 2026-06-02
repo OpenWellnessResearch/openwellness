@@ -1,5 +1,5 @@
 [project]
-name = "ope-well-ba-core"
+name = "openwellness-core"
 version = "0.1.0"
 description = "Shared domain models, repository interfaces, and persistence adapters for OpenWellness."
 readme = "README.md"
