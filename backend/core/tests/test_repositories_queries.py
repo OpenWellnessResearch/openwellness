@@ -17,89 +17,89 @@ from typing import Optional
 import arrow
 import pytest
 
-from src.core.adapters.couchbase.repositories._query_helpers import (
+from openwellness_core.adapters.couchbase.repositories._query_helpers import (
     allowed_column,
 )
-from src.core.adapters.couchbase.repositories.cb_actigraph_record_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_actigraph_record_repository import (
     CBActigraphRecordRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_asset_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_asset_repository import (
     CBAssetRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_condition_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_condition_repository import (
     CBConditionRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_conversation_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_conversation_repository import (
     CBConversationRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_daily_state_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_daily_state_repository import (
     CBDailyStateRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_fitbit_heart_record_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_fitbit_heart_record_repository import (
     CBFitbitHeartRecordRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_fitbit_record_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_fitbit_record_repository import (
     CBFitbitRecordRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_fitbit_sleep_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_fitbit_sleep_repository import (
     CBFitbitSleepRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_fitbit_sleep_session_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_fitbit_sleep_session_repository import (
     CBFitbitSleepSessionRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_fitbit_weight_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_fitbit_weight_repository import (
     CBFitbitWeightRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_goal_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_goal_repository import (
     CBGoalRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_job_rule_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_job_rule_repository import (
     CBJobRuleRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_message_draft_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_message_draft_repository import (
     CBMessageDraftRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_message_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_message_repository import (
     CBMessageRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_meta_data_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_meta_data_repository import (
     CBMetaDataRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_physical_activity_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_physical_activity_repository import (
     CBPhysicalActivityRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_post_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_post_repository import (
     CBPostRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_session_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_session_repository import (
     CBSessionRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_shared_goal_progress_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_shared_goal_progress_repository import (
     CBSharedGoalProgressRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_study_settings_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_study_settings_repository import (
     CBStudySettingsRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_survey_result_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_survey_result_repository import (
     CBSurveyResultRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_user_food_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_user_food_repository import (
     CBUserFoodRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_user_settings_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_user_settings_repository import (
     CBUserSettingsRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_user_sleep_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_user_sleep_repository import (
     CBUserSleepRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_user_stress_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_user_stress_repository import (
     CBUserStressRepository,
 )
-from src.core.adapters.couchbase.repositories.cb_weight_repository import (
+from openwellness_core.adapters.couchbase.repositories.cb_weight_repository import (
     CBWeightRepository,
 )
-from src.core.domain.models.conversation import Conversation
-from src.core.infrastructure.interfaces.entity_repository import (
+from openwellness_core.domain.models.conversation import Conversation
+from openwellness_core.infrastructure.interfaces.entity_repository import (
     EntityRepository,
 )
 
@@ -508,7 +508,7 @@ def test_message_includes_optional(fake_repo):
 
 
 def test_study_settings_parameterized(fake_repo):
-    from src.core.adapters.couchbase.repositories.cb_study_settings_repository import (
+    from openwellness_core.adapters.couchbase.repositories.cb_study_settings_repository import (
         CBStudySettingsRepository as Repo,
     )
 

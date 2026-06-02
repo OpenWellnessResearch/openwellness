@@ -11,7 +11,6 @@ from ...domain.models.asset import Asset
 from ...domain.models.card import Card
 from ...domain.models.condition import Condition
 from ...domain.models.conversation import Conversation
-from ...domain.models.cpap_session import CPAPSession
 from ...domain.models.daily_state import DailyState
 from ...domain.models.device import Device
 from ...domain.models.fitbit import Fitbit
@@ -50,7 +49,6 @@ class EntityContainer(DeclarativeContainer):
     card = DIObject(Card)
     condition = DIObject(Condition)
     conversation = DIObject(Conversation)
-    cpap_session = DIObject(CPAPSession)
     daily_state = DIObject(DailyState)
     fitbit_heart_record = DIObject(FitbitHeartRecord)
     fitbit_record = DIObject(FitbitRecord)

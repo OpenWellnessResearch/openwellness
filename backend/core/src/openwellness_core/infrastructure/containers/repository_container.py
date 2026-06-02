@@ -21,9 +21,6 @@ from ...adapters.couchbase.repositories.cb_condition_repository import (
 from ...adapters.couchbase.repositories.cb_conversation_repository import (
     CBConversationRepository,
 )
-from ...adapters.couchbase.repositories.cb_cpap_session_repository import (
-    CBCPAPSessionRepository,
-)
 from ...adapters.couchbase.repositories.cb_daily_state_repository import (
     CBDailyStateRepository,
 )
@@ -165,11 +162,6 @@ class RepositoryContainer(DeclarativeContainer):
         CBConversationRepository,
         repo=entity_repository,
         entity_type=entities.conversation,
-    )
-    cpap_session = DIFactory(
-        CBCPAPSessionRepository,
-        repo=entity_repository,
-        entity_type=entities.cpap_session,
     )
     daily_state = DIFactory(
         CBDailyStateRepository,
