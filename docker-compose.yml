@@ -9,4 +9,19 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
-  # scheduler / dashboard / mobile-web: added later as siblings
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: ./backend
+      target: scheduler
+    env_file: .env
+    depends_on:
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+  # dashboard / mobile-web: added later as siblings

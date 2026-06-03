@@ -6,6 +6,16 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "openwellness-core",
+    "celery>=5.4",
+    "dependency-injector>=4.41",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pyright>=1.1",
 ]
 
 [build-system]
