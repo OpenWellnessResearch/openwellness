@@ -1,15 +1,73 @@
-# Phase 01 review disposition
+---
+phase: 01
+review: 01-REVIEW.md
+titles: json
+findings:
+  - id: WR-01
+    severity: warning
+    disposition: fixed
+    title: "`MongoParticipantRepository._to_doc` makes legacy participants un-patchable and un-archivable, with a misleading 404"
+  - id: WR-02
+    severity: warning
+    disposition: fixed
+    title: "New catch-all 500 handler returns no CORS headers, and every unhandled error is logged twice"
+  - id: WR-03
+    severity: warning
+    disposition: fixed
+    title: "ADR 0007 omits two live routes, and one of them can bypass the membership scope the ADR defines"
+  - id: WR-04
+    severity: warning
+    disposition: fixed
+    title: "`APP_*` variables listed in `.env.example` are read with `os.environ`, so they are silently ignored on direct runs"
+  - id: WR-05
+    severity: warning
+    disposition: skipped
+    title: "Unauthenticated `POST /v1/users` now answers 409 ALREADY_EXISTS, an email-existence oracle"
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "`.env.example` omits settings the API refuses to boot without"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "CI concurrency group cancels in-progress runs on `main`"
+  - id: IN-03
+    severity: info
+    disposition: open
+    title: "Dependency Rule is asserted in docs but not enforced by any test or CI step"
+  - id: IN-04
+    severity: info
+    disposition: open
+    title: "Unused parameter and a duplicated default collection name"
+  - id: IN-05
+    severity: info
+    disposition: open
+    title: "Style drift from project conventions in new files"
+  - id: IN-06
+    severity: info
+    disposition: open
+    title: "`resolve_env_file` locates the repo root by the `docker-compose.yml` marker and `env_file` is bound at import"
+open: 6
+total: 11
+recorded: 2026-10-30T17:24:16.046Z
+---
 
-Source: 01-REVIEW.md (0 critical, 4 warning, 5 info). Every finding starts `open`; triage with `/gsd-code-review 01 --fix` or by editing this table.
+# Phase 01: Code Review Disposition
 
-| ID | Severity | File | Summary | Disposition |
-| --- | --- | --- | --- | --- |
-| WR-01 | warning | backend/core/src/openwellness_core/adapters/mongo/repositories/mongo_participant_repository.py:56-62 | Malformed userId/assignedCoachId in a body returns 404 (not 400) and echoes the raw value | open |
-| WR-02 | warning | backend/core/src/openwellness_core/adapters/mongo/repositories/mongo_base_repository.py:71-77 | Stored-document hydration ValidationError surfaces as client 400 leaking stored fields | open |
-| WR-03 | warning | backend/api/src/openwellness_api/main.py:50-58 | container.wire before the try leaks the Couchbase cluster on failure | open |
-| WR-04 | warning | backend/core/src/openwellness_core/adapters/mongo/repositories/mongo_refresh_session_repository.py:44-56 | ensure_indexes maps every OperationFailure to "drop the index" advice | open |
-| IN-01 | info | backend/core/src/openwellness_core/infrastructure/config/settings.py | Missing/mistyped OPENWELLNESS_ENV_FILE silently ignored | open |
-| IN-02 | info | .env.example | Omits API_AUTH_JWT_SECRET, API_AUTH_CODE_PEPPER, SMTP_* required at boot | open |
-| IN-03 | info | (several) | Style drift: long line, mid-file imports, missing __future__ annotations | open |
-| IN-04 | info | mongo_participant_repository.py | Legacy doc without studyId yields study_id=None despite str type | open |
-| IN-05 | info | backend/api/src/openwellness_api/main.py | Catch-all 500 sits outside CORSMiddleware (pre-existing) | open |
+| Finding | Severity | Disposition | Source |
+|---------|----------|-------------|--------|
+| WR-01 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-03 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-04 | warning | fixed | 01-REVIEW-FIX.md |
+| WR-05 | warning | skipped | 01-REVIEW-FIX.md |
+| IN-01 | info | open | - |
+| IN-02 | info | open | - |
+| IN-03 | info | open | - |
+| IN-04 | info | open | - |
+| IN-05 | info | open | - |
+| IN-06 | info | open | - |
+
+Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
+Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
+Re-running the gate keeps every row it can. A row the current review no longer reports is kept and its Source cell flagged, so a finding does not leave this record silently. ONE exception: when a finding id is REUSED by a different finding, the earlier decision cannot keep a row — the id is taken — and it is dropped. A RECORDED decision (anything but `open`) is named on the console when that happens; a row still at `open` is replaced silently, because `open` records no decision to lose.
