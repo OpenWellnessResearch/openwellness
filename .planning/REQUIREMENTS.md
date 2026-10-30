@@ -8,8 +8,8 @@
 ### Foundations
 
 - [x] **FOUND-01**: CI runs all backend suites (core, api, scheduler), pyright, and dashboard lint/typecheck/test/format and mobile host tests on every PR
-- [ ] **FOUND-02**: Datastore and shared settings (Postgres, legacy Couchbase/Mongo, Redis) are defined once in `core` and consumed by both api and scheduler
-- [ ] **FOUND-03**: Services load settings from a `.env` file when run directly (uvicorn/celery) as well as under docker compose, from one documented location
+- [x] **FOUND-02**: Datastore and shared settings (Postgres, legacy Couchbase/Mongo, Redis) are defined once in `core` and consumed by both api and scheduler
+- [x] **FOUND-03**: Services load settings from a `.env` file when run directly (uvicorn/celery) as well as under docker compose, from one documented location
 - [ ] **FOUND-04**: Domain entities carry no datastore-specific types (`bson.ObjectId` removed from domain; coercion lives in the Mongo adapter)
 - [ ] **FOUND-05**: Auth persistence (users-by-email lookup, refresh sessions) goes through repository ports instead of direct pymongo / Mongo-dict queries
 - [ ] **FOUND-06**: Repository errors are not swallowed — malformed ids map to not-found, datastore outages surface as 5xx and are logged via `logging` (no `print`)
@@ -123,8 +123,8 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | FOUND-01 | Phase 1 | Complete |
-| FOUND-02 | Phase 1 | Pending |
-| FOUND-03 | Phase 1 | Pending |
+| FOUND-02 | Phase 1 | Complete |
+| FOUND-03 | Phase 1 | Complete |
 | FOUND-04 | Phase 1 | Pending |
 | FOUND-05 | Phase 1 | Pending |
 | FOUND-06 | Phase 1 | Pending |
