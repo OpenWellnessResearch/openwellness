@@ -92,3 +92,43 @@ def test_adapter_refuses_empty_study_id() -> None:
     with pytest.raises(EntityNotFoundException):
         repo.create(Participant(participant_number="N-1"))
     assert db["participants"].count_documents({}) == 0
+
+
+def _legacy_participant(client: TestClient, db: Any, study: str) -> str:
+    """A stored participant whose userId is a non-ObjectId legacy string."""
+    pid = _create(client, study).json()["name"].rsplit("/", 1)[-1]
+    db["participants"].update_one(
+        {"_id": ObjectId(pid)}, {"$set": {"userId": "legacy-couch-id"}}
+    )
+    return pid
+
+
+def test_patch_legacy_user_id_participant_keeps_stored_value(mongo: Any) -> None:
+    client, db = mongo
+    study = str(ObjectId())
+    pid = _legacy_participant(client, db, study)
+    r = client.patch(
+        f"/v1/studies/{study}/participants/{pid}",
+        json={"participantNumber": "P-10"},
+    )
+    assert r.status_code == 200, r.text
+    doc = db["participants"].find_one({"_id": ObjectId(pid)})
+    assert doc["participantNumber"] == "P-10"
+    assert doc["userId"] == "legacy-couch-id"
+
+
+def test_delete_legacy_user_id_participant_succeeds(mongo: Any) -> None:
+    client, db = mongo
+    study = str(ObjectId())
+    pid = _legacy_participant(client, db, study)
+    r = client.delete(f"/v1/studies/{study}/participants/{pid}")
+    assert r.status_code == 204, r.text
+    assert db["participants_archive"].count_documents({}) == 1
+
+
+def test_not_found_message_does_not_echo_value() -> None:
+    db = mongomock.MongoClient()["testdb"]
+    repo = MongoParticipantRepository(mongo_repo=db)
+    with pytest.raises(EntityNotFoundException) as exc:
+        repo.create(Participant(study_id=str(ObjectId()), user_id="secret-val"))
+    assert "secret-val" not in str(exc.value)
