@@ -97,13 +97,39 @@ This installs all three packages as editable, so `import openwellness_core`
 
 ### Configuration
 
-Services read settings from the environment. For local development, put them
-in a single shared `backend/.env`. The Couchbase, Sync Gateway, and Mongo
-variables are common to both services; the `scheduler` additionally reads the
-`CELERY_*` variables.
+Services read settings from the environment. All settings live in a single
+shared `.env` at the repository root, next to `docker-compose.yml` (start from
+`.env.example`). Direct `uvicorn` / `celery` runs find it from any directory,
+including `backend/`; set `OPENWELLNESS_ENV_FILE` to an absolute path to use a
+different file. Precedence is: real environment variables, then `.env`, then
+code defaults.
+
+The `.env` holds direct-run values (`localhost`). `docker-compose.yml` overrides
+`REDIS_URL` (api) and `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` (scheduler)
+with the compose `redis` service, so the same file works under compose. The
+Couchbase, Sync Gateway, Mongo, and Redis variables are common to both
+services; the `scheduler` additionally reads the `CELERY_*` variables.
+
+**Migration:**
+
+- If you keep an env file under `backend/`, move it to the repository root; it
+  is no longer read.
+- If your repo-root `.env` was copied from the old `.env.example`, it still has
+  these lines, which a direct `uvicorn` or `celery` run cannot reach:
+
+  ```sh
+  CELERY_BROKER_URL=redis://redis:6379/0
+  CELERY_RESULT_BACKEND=redis://redis:6379/1
+  ```
+
+  Change them to `redis://localhost:6379/0` and `redis://localhost:6379/1`
+  (compose overrides both either way). Likewise change a `MONGO_URL` naming
+  `host.docker.internal` to `localhost` for direct runs.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `REDIS_URL` | `redis://localhost:6379/0` | Redis for OTP codes and rate limits (api). |
+| `POSTGRES_URL` | empty | Postgres connection string; read by core settings, used once the Postgres backend lands. |
 | `CELERY_BROKER_URL` | `redis://localhost:6379/0` | Message broker the worker pulls tasks from. |
 | `CELERY_RESULT_BACKEND` | `redis://localhost:6379/1` | Where task results are stored. |
 | `CELERY_TASK_DEFAULT_QUEUE` | `openwellness` | Default queue name for tasks. |
@@ -116,10 +142,11 @@ variables are common to both services; the `scheduler` additionally reads the
 | `MONGO_URL` | `mongodb://localhost:27017` | Mongo connection string. |
 | `MONGO_DB` | `openwellness` | Mongo database name. |
 
-Example `backend/.env`:
+Example repo-root `.env`:
 
 ```sh
-# Celery broker / result backend
+# Redis (api) and Celery broker / result backend
+REDIS_URL=redis://localhost:6379/0
 CELERY_BROKER_URL=redis://localhost:6379/0
 CELERY_RESULT_BACKEND=redis://localhost:6379/1
 
