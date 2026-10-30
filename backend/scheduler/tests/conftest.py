@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+# Tests must never read a developer's real `.env` (it may point at live datastores).
+os.environ["OPENWELLNESS_ENV_FILE"] = os.devnull
 # Keep config construction deterministic before anything imports it.
 os.environ.setdefault("COUCHBASE_URL", "couchbase://stub")
 os.environ.setdefault("MONGO_URL", "mongodb://stub")

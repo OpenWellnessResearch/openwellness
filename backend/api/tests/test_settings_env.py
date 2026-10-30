@@ -41,11 +41,18 @@ def test_api_app_config_loads_env_file_from_backend_dir(tmp_path: Path) -> None:
     assert out.split() == ["from-env-file", "bucket-from-file"]
 
 
-def test_scheduler_and_api_share_one_app_config() -> None:
-    from openwellness_api.config import AppConfig as ApiAppConfig
-    from openwellness_scheduler.config import AppConfig as SchedulerAppConfig
-
-    assert ApiAppConfig is SchedulerAppConfig
+def test_scheduler_and_api_share_one_app_config(tmp_path: Path) -> None:
+    # Subprocess: importing the scheduler package in the api test process trips
+    # dependency-injector once the api container classes are already loaded.
+    out = _run(
+        "from openwellness_api.config import AppConfig as A\n"
+        "from openwellness_scheduler.config import AppConfig as S\n"
+        "print(A is S)",
+        BACKEND_DIR,
+        tmp_path / "absent.env",
+        (),
+    )
+    assert out.strip() == "True"
 
 
 def test_scheduler_celery_settings_load_env_file_from_scheduler_dir(

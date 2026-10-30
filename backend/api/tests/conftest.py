@@ -11,6 +11,8 @@ import os
 from typing import Any
 from uuid import uuid4
 
+# Tests must never read a developer's real `.env` (it may point at live datastores).
+os.environ["OPENWELLNESS_ENV_FILE"] = os.devnull
 # Ensure config loads with safe defaults before the app imports.
 os.environ.setdefault("COUCHBASE_URL", "couchbase://stub")
 os.environ.setdefault("MONGO_URL", "mongodb://stub")
