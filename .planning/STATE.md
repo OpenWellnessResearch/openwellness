@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Foundations & Architecture Decisions
 status: executing
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-10-30T14:29:40.412Z"
+stopped_at: Completed 01-09-PLAN.md
+last_updated: "2026-10-30T14:34:11.680Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 01 execution started
-state_head: 7a9a2c3f729f62adf690e634b0c3f6c12b937cf0
+state_head: e054b37ddf6fe23ccb08bbe4a33822a288fb3415
 progress:
   total_phases: 12
   completed_phases: 0
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 9
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 01 (Foundations & Architecture Decisions) — EXECUTING
-Plan: 9 of 11
+Plan: 10 of 11
 Status: Ready to execute
 Last activity: 2026-10-30 — Phase 01 execution started
 
@@ -64,6 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P08 | 20min | 3 tasks | 2 files |
 | Phase 01 P10 | 5min | 2 tasks | 3 files |
 | Phase 01 P05 | 25min | 3 tasks | 10 files |
+| Phase 01 P09 | 12 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,7 @@ Recent decisions affecting current work:
 - [Phase 01]: ADR 0005: owner = participant id (legacy Sync Gateway owner channel); Phase 2 binds participant claim to {user} on users/{user}/... and sub on top-level users/{user}; exceptions: study_settings (study id), conversation and participant_group (membership-based, open point for Phase 6)
 - [Phase 01]: 01-10: compose environment overrides carry redis service hostnames; .env keeps localhost so one file serves both
 - [Phase 01]: 01-05: DuplicateEntityException lives in application, re-exported by adapters.exceptions (LimitExceededException placement); messages name the collection only
+- [Phase 01]: ADR 0006/0007: study-scoped coach access via coach_studies claim; 36-row policy table; conversation and participant_group participant-self none until membership predicate (ADR 0005 open point)
 
 ### Pending Todos
 
@@ -112,6 +114,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T14:29:40.393Z
-Stopped at: Completed 01-05-PLAN.md
+Last session: 2026-10-30T14:34:11.660Z
+Stopped at: Completed 01-09-PLAN.md
 Resume file: None
