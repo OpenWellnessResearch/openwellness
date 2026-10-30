@@ -1,11 +1,11 @@
-"""Participant resource — study-scoped, hand-rolled to handle ObjectId fields."""
+"""Participant resource — study-scoped, hand-rolled for IntEnum flattening and
+the ``studies/{study}`` parent."""
 
 from __future__ import annotations
 
 from dataclasses import fields as dc_fields
 from typing import Any
 
-from bson.objectid import ObjectId
 from fastapi import APIRouter, Depends
 
 from openwellness_core.application.repositories import ParticipantRepository
@@ -36,12 +36,10 @@ def _parent_name(study: str) -> str:
 
 
 def _to_dict(p: ParticipantEntity) -> dict[str, Any]:
-    """Hand-roll Participant serialization to flatten ObjectId / IntEnum."""
+    """Hand-roll Participant serialization to flatten IntEnum."""
     out: dict[str, Any] = {}
     for f in dc_fields(p):
         v = getattr(p, f.name)
-        if isinstance(v, ObjectId):
-            v = str(v)
         if hasattr(v, "value") and hasattr(v, "name") and isinstance(v, int):
             v = int(v)
         out[f.name] = v
@@ -62,14 +60,6 @@ def _serialize(p: ParticipantEntity, study: str) -> dict[str, Any]:
     return Participant.model_validate(payload).model_dump(by_alias=True)
 
 
-def _coerce_object_ids(payload: dict[str, Any]) -> dict[str, Any]:
-    for k in ("assigned_coach_id", "user_id"):
-        v = payload.get(k)
-        if v:
-            payload[k] = ObjectId(v)
-    return payload
-
-
 def build_router() -> APIRouter:
     router = APIRouter(
         prefix=f"/{_PARENT}/{{study}}/{_COLLECTION}", tags=[_COLLECTION]
@@ -80,7 +70,7 @@ def build_router() -> APIRouter:
         entity = repo.get_by_id(id_)
         if entity is None:
             not_found(_COLLECTION, id_, parent=_parent_name(study))
-        if str(getattr(entity, "study_id", "")) != study:
+        if entity.study_id != study:
             not_found(_COLLECTION, id_, parent=_parent_name(study))
         return entity
 
@@ -92,8 +82,7 @@ def build_router() -> APIRouter:
         repo: ParticipantRepository = Depends(repo_dep),
     ) -> Any:
         payload = body.model_dump(exclude_unset=False)
-        payload["study_id"] = ObjectId(study)
-        payload = _coerce_object_ids(payload)
+        payload["study_id"] = study
         return _serialize(repo.create(ParticipantEntity(**payload)), study)
 
     @router.get("/{participant}", response_model=Participant)
@@ -114,7 +103,6 @@ def build_router() -> APIRouter:
     ) -> Any:
         entity = _fetch(study, participant, repo)
         data = body.model_dump(exclude_unset=True)
-        data = _coerce_object_ids(data)
         for key, value in data.items():
             if hasattr(entity, key):
                 setattr(entity, key, value)

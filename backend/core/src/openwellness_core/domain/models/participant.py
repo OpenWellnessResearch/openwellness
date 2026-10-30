@@ -6,8 +6,6 @@ from enum import IntEnum
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from bson.objectid import ObjectId
-
 from .base_entity import BaseEntity
 
 
@@ -24,11 +22,11 @@ class Participant(BaseEntity):
         PARTICIPANT = 0
         BUDDY = 1
 
-    assigned_coach_id: Optional[ObjectId] = None
+    assigned_coach_id: Optional[str] = None
     couch_id: str = field(default="", metadata={"deprecated": True})
     time_created: datetime = field(default_factory=datetime.now)
-    user_id: Optional[ObjectId] = None
-    study_id: ObjectId = field(default_factory=ObjectId)
+    user_id: Optional[str] = None
+    study_id: str = ""
     google_id: Optional[str] = None
     device_id: Optional[str] = None
     is_active: bool = False
