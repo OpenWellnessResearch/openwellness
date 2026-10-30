@@ -145,3 +145,25 @@ def register_exception_handlers(app: FastAPI) -> None:
                 exc.status_code, "ERROR", str(exc.detail)
             ),
         )
+
+    @app.exception_handler(Exception)
+    async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
+        """Catch-all: log and return a generic 500.
+
+        Adapter and driver outages, including datastore connectivity, must
+        surface as a logged 5xx instead of being masked as 404 or an empty
+        result. The message is withheld from the client because driver errors
+        can carry host names and query fragments. Never log request bodies or
+        headers here.
+        """
+        logger.error(
+            "Unhandled %s on %s %s",
+            type(exc).__name__,
+            request.method,
+            request.url.path,
+            exc_info=exc,
+        )
+        return JSONResponse(
+            status_code=500,
+            content=build_error(500, "INTERNAL", "Internal error."),
+        )

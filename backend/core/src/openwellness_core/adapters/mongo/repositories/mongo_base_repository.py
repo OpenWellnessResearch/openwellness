@@ -1,6 +1,5 @@
 """Mongo base repository for all entities."""
 
-import traceback
 from typing import Any, Generic, Type, TypeVar
 
 from bson import ObjectId
@@ -15,6 +14,14 @@ from ..model.mongo_base_entity import MongoBaseEntity
 
 Entity = TypeVar("Entity", bound=BaseEntity)
 Persistence = TypeVar("Persistence", bound=MongoBaseEntity)
+
+
+def object_id_or_none(value: Any) -> ObjectId | None:
+    """Parse ``value`` as an ObjectId, or None when it cannot be one.
+
+    A value Mongo cannot parse names no document, so callers treat it as not found.
+    """
+    return ObjectId(value) if ObjectId.is_valid(value) else None
 
 
 class MongoBaseRepository(BaseCrudRepository, Generic[Entity, Persistence]):
@@ -56,17 +63,11 @@ class MongoBaseRepository(BaseCrudRepository, Generic[Entity, Persistence]):
         return collection.find(query)
 
     def get_by_id(self, entity_id: str) -> Entity | None:
-        try:
-            collection = self.repo[self._collection_name]
-            result = collection.find_one({"_id": ObjectId(entity_id)})
-            return None if not result else self._from_doc(result)
-        except AttributeError as e:
-            print(f"Attribute error: {e}")
+        oid = object_id_or_none(entity_id)
+        if oid is None:
             return None
-        except Exception as e:
-            print(traceback.format_exc())
-            print(f"An error occurred: {e}")
-            return None
+        result = self.repo[self._collection_name].find_one({"_id": oid})
+        return None if not result else self._from_doc(result)
 
     def get_by_query(self, query: dict) -> list[Entity]:
         return [self._from_doc(item) for item in self.execute_query(query)]
