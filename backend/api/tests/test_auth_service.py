@@ -22,6 +22,9 @@ import fakeredis
 import mongomock
 import pytest
 
+from openwellness_core.adapters.mongo.repositories.mongo_refresh_session_repository import (
+    MongoRefreshSessionRepository,
+)
 from openwellness_core.application.exceptions import LimitExceededException
 from openwellness_core.domain.models.user import User
 
@@ -173,10 +176,9 @@ class _Ctx:
         self.collection: Any = mongomock.MongoClient()["testdb"][
             "auth_refresh_sessions"
         ]
-        self.session_store = RefreshSessionStore(
-            collection=self.collection, clock=self.clock
-        )
-        self.session_store.ensure_indexes()
+        adapter = MongoRefreshSessionRepository(collection=self.collection)
+        adapter.ensure_indexes()
+        self.session_store = RefreshSessionStore(repo=adapter, clock=self.clock)
         self.email = FakeEmailSender()
         self.user_repo = FakeUserRepo()
         self.participant_repo = FakeParticipantRepo()

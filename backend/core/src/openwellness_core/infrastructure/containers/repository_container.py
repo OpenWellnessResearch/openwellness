@@ -6,6 +6,8 @@ named ``repo``, ``mongo_repo`` or ``db``, and where a handful of repos
 hard-code the entity class instead of accepting ``entity_type=``.
 """
 
+import operator
+
 from ...adapters.couchbase.repositories.cb_actigraph_record_repository import (
     CBActigraphRecordRepository,
 )
@@ -105,6 +107,9 @@ from ...adapters.mongo.repositories.mongo_fitbit_repository import (
 from ...adapters.mongo.repositories.mongo_participant_repository import (
     MongoParticipantRepository,
 )
+from ...adapters.mongo.repositories.mongo_refresh_session_repository import (
+    MongoRefreshSessionRepository,
+)
 from ...adapters.mongo.repositories.mongo_study_message_repository import (
     MongoStudyMessageRepository,
 )
@@ -120,9 +125,12 @@ from ..drivers.mdb_collection_repository import MDBCollectionRepository
 from .entity_container import EntityContainer
 from .providers import (
     DeclarativeContainer,
+    DICallable,
     DIContainer,
     DIDependency,
     DIFactory,
+    DIObject,
+    DISingleton,
 )
 
 
@@ -320,4 +328,15 @@ class RepositoryContainer(DeclarativeContainer):
         MongoUserRepository,
         repo=collection_repository,
         entity_type=entities.user,
+    )
+    # Default is the AuthSettings.refresh_collection default; the API lifespan
+    # overrides it from API_AUTH_REFRESH_COLLECTION so a customized deployment
+    # keeps its live sessions.
+    refresh_session_collection = DIObject("auth_refresh_sessions")
+    # Singleton: one collection handle, and indexes are ensured once per process.
+    refresh_session = DISingleton(
+        MongoRefreshSessionRepository,
+        collection=DICallable(
+            operator.getitem, collection_repository, refresh_session_collection
+        ),
     )

@@ -277,6 +277,10 @@ def app(fakes: dict[type, Any], fake_email_sender):
     import mongomock
 
     from openwellness_api.auth.otp_store import RedisOtpStore
+    from openwellness_core.adapters.mongo.repositories.mongo_refresh_session_repository import (
+        MongoRefreshSessionRepository,
+    )
+
     from openwellness_api.auth.session_store import RefreshSessionStore
     from openwellness_api.auth.token_service import JwtTokenService
     from openwellness_api.config import AuthSettings
@@ -319,11 +323,11 @@ def app(fakes: dict[type, Any], fake_email_sender):
             )
         )
     )
-    session_store = RefreshSessionStore(
-        collection=mongomock.MongoClient()["testdb"]["auth_refresh_sessions"],
-        clock=default_clock,
+    refresh_adapter = MongoRefreshSessionRepository(
+        collection=mongomock.MongoClient()["testdb"]["auth_refresh_sessions"]
     )
-    session_store.ensure_indexes()
+    refresh_adapter.ensure_indexes()
+    session_store = RefreshSessionStore(repo=refresh_adapter, clock=default_clock)
     auth_container.session_store.override(providers.Object(session_store))
     auth_container.email_sender.override(providers.Object(fake_email_sender))
     instance.state.auth_container = auth_container
