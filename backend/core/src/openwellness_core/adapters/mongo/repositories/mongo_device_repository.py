@@ -2,8 +2,6 @@
 
 from typing import Generic, Type
 
-from bson.objectid import ObjectId
-
 from ....application.repositories.device_repository import (
     DeviceRepository,
     SomeDevice,
@@ -11,7 +9,7 @@ from ....application.repositories.device_repository import (
 from ....domain.models.device import Device
 from ...interfaces.collection_repository import CollectionRepository
 from ..model.mongo_device import MongoDevice
-from .mongo_base_repository import MongoBaseRepository
+from .mongo_base_repository import MongoBaseRepository, object_id_or_none
 
 
 class MongoDeviceRepository(
@@ -34,4 +32,7 @@ class MongoDeviceRepository(
         return self.get_by_query({"serialNumber": serial_number})
 
     def get_by_participant_id(self, participant_id: str) -> list[SomeDevice]:
-        return self.get_by_query({"participantId": ObjectId(participant_id)})
+        oid = object_id_or_none(participant_id)
+        if oid is None:
+            return []
+        return self.get_by_query({"participantId": oid})
