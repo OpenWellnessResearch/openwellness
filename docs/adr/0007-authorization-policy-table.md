@@ -7,7 +7,7 @@
 
 ## Context
 
-Phase 2 enforces deny-by-default access on every `/v1` route, and Phase 6 sync streams must agree with it. Owner binding that checks only the token, not the relationship between caller and record, is the IDOR described in research Pitfall 2. This ADR is the one written policy both phases implement. It sets the answer per resource module and method (D-06), and for every allowed cell it names a scope predicate that can be computed from signed claims (ADR 0004 and 0006) plus stored record fields (ADR 0005). `RESOURCE_MODULES` has 36 modules, and each exposes the same seven operations: get, list, create, patch, delete (archive), undelete and purge.
+Phase 2 enforces deny-by-default access on every `/v1` route, and Phase 6 sync streams must agree with it. Owner binding that checks only the token, not the relationship between caller and record, is the IDOR described in research Pitfall 2. This ADR is the one written policy both phases implement. It sets the answer per resource module and method (D-06), and for every allowed cell it names a scope predicate that can be computed from signed claims (ADR 0004 and 0006) plus stored record fields (ADR 0005). `RESOURCE_MODULES` has 36 modules, and each exposes the same seven standard operations: get, list, create, patch, delete (archive), undelete and purge. Two modules also expose a custom method, listed in the Custom methods table below.
 
 ## Decision
 
@@ -122,6 +122,19 @@ Cells are a comma-separated subset of get, list, create, patch, delete, undelete
 | `user_sleep` | `/v1/users/{user}/userSleeps` | `self-owner`; `coach-study` | none | get, list, create, patch, delete, undelete | get, list | get, list, create, patch, delete, undelete, purge |
 | `user_stress` | `/v1/users/{user}/userStresses` | `self-owner`; `coach-study` | none | get, list, create, patch, delete, undelete | get, list | get, list, create, patch, delete, undelete, purge |
 | `weight` | `/v1/users/{user}/weights` | `self-owner`; `coach-study` | none | get, list, create, patch, delete, undelete | get, list | get, list, create, patch, delete, undelete, purge |
+
+## Custom methods
+
+Two live routes sit outside the seven standard operations and have their own cells. The route-enumeration test treats them as policy rows too, so a route with no cell here or in the Policy table is denied (deny by default).
+
+| Method | Route | Scope | anonymous | participant-self | coach (in-study) | admin |
+| --- | --- | --- | --- | --- | --- | --- |
+| `study:lookup` | `POST /v1/studies:lookup` | `self-study`; `coach-study` | none | lookup | lookup | lookup |
+| `conversation:search` | `POST /v1/conversations:search` | `self-member-conversation`; `coach-study` | none | search | search | search |
+
+- `study:lookup` finds a study by name. A study outside the caller's scope answers 404, the same as a missing name, so existence is not revealed.
+- `conversation:search` takes caller-chosen `channels`, `kind` and `week` filters. The scope predicate (membership for participant-self, `coach-study` for coach) is applied to the candidate set before those filters, so a filter can never widen the result to conversations the caller cannot get. The Phase 2 hostile-filter test covers this route as well.
+- Phase 2 adds a test that diffs the live app routes against the Policy and Custom methods tables, so a new route cannot ship without a cell.
 
 ## Unauthenticated endpoints
 
