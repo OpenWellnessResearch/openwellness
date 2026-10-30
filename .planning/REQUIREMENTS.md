@@ -21,7 +21,7 @@
 - [ ] **AUTH-02**: A test enumerates every registered route and asserts anonymous access returns 401
 - [ ] **AUTH-03**: A participant can only read and write resources under their own `{user}`; another user's resources return 404 (including via `filter=`)
 - [ ] **AUTH-04**: Admin resources and the user list require the `admin` role (403 otherwise)
-- [ ] **AUTH-05**: Coach-facing endpoints require the `coach` or `admin` role (role gate only; per-study/participant scoping is documented as a v1 limit)
+- [ ] **AUTH-05**: Coach-facing endpoints require the `coach` or `admin` role, and a coach reads or writes only records whose study id is in their `coach_studies` claim, with every write also checked against the target owner's Participant record (ADRs 0006 and 0007); a record or participant in any other study returns 404; this absorbs the former v2 AUTHZ-01 (D-02)
 - [ ] **AUTH-06**: Audit fields (`updated_by`, etc.) come only from the verified token; the `X-Principal-Id` header is ignored
 - [ ] **AUTH-07**: Access tokens carry a `kid` header and are signed with an asymmetric key (EdDSA default); the API publishes a JWKS endpoint
 - [ ] **AUTH-08**: Concurrent refresh with the same refresh token within a short grace window does not trigger reuse-detection logout
@@ -90,7 +90,6 @@
 
 ### Authorization
 
-- **AUTHZ-01**: Coaches scoped to participants in their assigned studies
 - **AUTHZ-02**: Postgres row-level security as defense in depth
 
 ### Mobile
