@@ -9,7 +9,10 @@ from pydantic import ValidationError
 from pydantic_core import to_jsonable_python
 from redis.exceptions import RedisError
 
-from openwellness_core.application.exceptions import LimitExceededException
+from openwellness_core.application.exceptions import (
+    DuplicateEntityException,
+    LimitExceededException,
+)
 from openwellness_core.domain.exceptions.domain_exception import (
     DomainException,
     EntityNotFoundException,
@@ -79,6 +82,23 @@ def register_exception_handlers(app: FastAPI) -> None:
                 str(exc),
                 details=[{"retry_after_secs": retry_after}],
             ),
+        )
+
+    @app.exception_handler(DuplicateEntityException)
+    async def _duplicate_entity(
+        _: Request, exc: DuplicateEntityException
+    ) -> JSONResponse:
+        """409: a write violated a uniqueness constraint.
+
+        The message stays generic because the duplicated value can be an email.
+        On POST /v1/users this reveals that an email is registered; ADR 0007
+        grants that create to admin only once Phase 2 enforces route auth. The
+        /v1/auth:* routes never reach this handler: registration maps the
+        exception to the uniform invalid_code 400.
+        """
+        return JSONResponse(
+            status_code=409,
+            content=build_error(409, "ALREADY_EXISTS", "The resource already exists."),
         )
 
     @app.exception_handler(RedisError)
