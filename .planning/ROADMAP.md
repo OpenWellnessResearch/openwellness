@@ -37,18 +37,29 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. OTP login, registration and refresh still work end to end after users-by-email lookup and refresh sessions move behind repository ports, and no domain entity imports `bson` or any other datastore type
   4. A request with a malformed resource id returns 404, and a datastore outage returns a 5xx with the error logged through `logging` instead of an empty result
   5. ADRs record the id format, timestamp representation, soft-delete semantics, token format, `owner` semantics and the per-resource authorization policy table
-**Plans**: 9 plans
+**Plans**: 11 plans
 
 Plans:
+**Wave 1**
 - [ ] 01-01-PLAN.md — GitHub Actions CI on every PR (backend, dashboard, mobile host tests) plus nightly iOS; make the current tree green first
 - [ ] 01-02-PLAN.md — Datastore/Redis/Postgres settings defined once in core; one repo-root `.env` for compose and direct runs
 - [ ] 01-03-PLAN.md — Honest Mongo repository errors: malformed id gives 404, outage gives a logged 500
-- [ ] 01-04-PLAN.md — Participant ids become plain strings in the domain; the Mongo adapter owns ObjectId coercion
-- [ ] 01-05-PLAN.md — `UserRepository.get_by_email` port and a datastore-neutral duplicate-key exception (409)
-- [ ] 01-06-PLAN.md — `RefreshSessionRepository` port with a Mongo adapter; API auth source free of pymongo
 - [ ] 01-07-PLAN.md — ADRs 0001-0004: id format, timestamps, soft delete/purge, token format
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 01-04-PLAN.md — Participant ids become plain strings in the domain; the Mongo adapter owns ObjectId coercion
 - [ ] 01-08-PLAN.md — ADR 0005: `owner` semantics from evidence (developer checkpoint)
-- [ ] 01-09-PLAN.md — ADRs 0006-0007: coach study scope and the per-resource authorization policy table
+- [ ] 01-10-PLAN.md — Document the repo-root `.env`; localhost values for direct runs, compose overrides for Redis hostnames
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 01-05-PLAN.md — `UserRepository.get_by_email` port and a datastore-neutral duplicate-key exception (409)
+- [ ] 01-09-PLAN.md — ADRs 0006-0007: coach study scope and the per-resource authorization policy table; requirements aligned with D-02
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 01-06-PLAN.md — `RefreshSessionRepository` port with a Mongo adapter, proven by contract tests
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 01-11-PLAN.md — `RefreshSessionStore` on the port, composition-root wiring (collection name still configurable); API auth source free of pymongo
 **UI hint**: no
 **Research flag**: Standard refactor patterns, so skip research. The ADRs must settle `owner` semantics (user id vs participant id, confirmed from the legacy model and tests), archive/purge retention, and the coach authorization model (role gate in v1) before the auth, Postgres and sync phases are planned.
 
@@ -203,7 +214,7 @@ Declared dependencies allow parallel streams. Phase 4 waits for Phase 3 so the P
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundations & Architecture Decisions | 0/9 | Planned | - |
+| 1. Foundations & Architecture Decisions | 0/11 | Planned | - |
 | 2. Route Authentication & Authorization | 0/TBD | Not started | - |
 | 3. Token Signing & Refresh Hardening | 0/TBD | Not started | - |
 | 4. Postgres Foundation & Auth on Postgres | 0/TBD | Not started | - |
