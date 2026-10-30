@@ -14,8 +14,8 @@ from ._base import SCHEMA_CONFIG, ResourceBase
 class Participant(ResourceBase):
     """Participant resource (study-scoped).
 
-    ``study_id`` / ``assigned_coach_id`` / ``user_id`` are persisted as
-    ``ObjectId`` in the domain; we serialize them as strings on the wire.
+    ``study_id`` / ``assigned_coach_id`` / ``user_id`` are strings in the
+    domain and on the wire; the Mongo adapter stores them as ``ObjectId``.
     """
 
     study_id: str = ""

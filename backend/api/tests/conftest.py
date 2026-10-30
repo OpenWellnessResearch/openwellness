@@ -371,7 +371,7 @@ def seed_accounts(fakes: dict[type, Any]) -> dict[str, Any]:
     )
     participant_a = Participant(
         id=pid_a,
-        user_id=login_user_id,  # type: ignore[arg-type]  # fake repos key by str id; runtime user_id is a stringified ObjectId
+        user_id=login_user_id,
         is_active=True,
         participant_number="A-1",
     )
@@ -388,7 +388,7 @@ def seed_accounts(fakes: dict[type, Any]) -> dict[str, Any]:
     )
     participant_b = Participant(
         id=pid_b,
-        user_id=reg_user_id,  # type: ignore[arg-type]  # fake repos key by str id; runtime user_id is a stringified ObjectId
+        user_id=reg_user_id,
         is_active=False,
         participant_number="B-1",
     )
