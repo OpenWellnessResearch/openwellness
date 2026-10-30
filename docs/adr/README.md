@@ -25,4 +25,4 @@ Short MADR, about one page per file:
 | [0002](0002-timestamp-representation.md) | Timestamp representation | Accepted |
 | [0003](0003-soft-delete-archive-purge.md) | Soft delete, archive and purge | Accepted |
 | [0004](0004-access-token-format.md) | Access token format | Accepted |
-| [0005](0005-owner-semantics.md) | Owner semantics | Proposed |
+| [0005](0005-owner-semantics.md) | Owner semantics | Accepted |
