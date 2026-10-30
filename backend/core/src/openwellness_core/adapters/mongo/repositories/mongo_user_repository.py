@@ -22,3 +22,7 @@ class MongoUserRepository(
     ) -> None:
         super().__init__(repo, entity_type, persistence_type)
         self.entity_type = entity_type
+
+    def get_by_email(self, email: str) -> list[SomeUser]:
+        """Exact match on the stored email; the Mongo dict stays in the adapter."""
+        return self.get_by_query({"email": email})

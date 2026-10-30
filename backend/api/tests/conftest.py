@@ -106,22 +106,10 @@ class InMemoryOwnerRepo(InMemoryBaseRepo):
 
 
 class FakeUserRepo(InMemoryBaseRepo, UserRepository):
-    def get_by_query(self, query: Any) -> list[Any]:
-        """Honor an ``{"email": ...}`` filter (the auth service relies on it).
-
-        The base in-memory ``get_by_query`` returns ALL users, which would make
-        the login-eligibility lookup (``get_by_query({"email": norm})`` must
-        return only the matching user) wrong. An empty/falsy query still returns
-        everything, preserving the existing CRUD-test behavior.
-        """
-        if isinstance(query, dict) and "email" in query:
-            wanted = query["email"]
-            return [
-                u
-                for u in self.store.values()
-                if getattr(u, "email", None) == wanted
-            ]
-        return list(self.store.values())
+    def get_by_email(self, email: str) -> list[Any]:
+        return [
+            u for u in self.store.values() if getattr(u, "email", None) == email
+        ]
 
 
 class FakeStudyRepo(InMemoryBaseRepo, StudyRepository):
