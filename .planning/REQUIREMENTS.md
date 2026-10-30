@@ -12,7 +12,7 @@
 - [x] **FOUND-03**: Services load settings from a `.env` file when run directly (uvicorn/celery) as well as under docker compose, from one documented location
 - [ ] **FOUND-04**: Domain entities carry no datastore-specific types (`bson.ObjectId` removed from domain; coercion lives in the Mongo adapter)
 - [ ] **FOUND-05**: Auth persistence (users-by-email lookup, refresh sessions) goes through repository ports instead of direct pymongo / Mongo-dict queries
-- [ ] **FOUND-06**: Repository errors are not swallowed — malformed ids map to not-found, datastore outages surface as 5xx and are logged via `logging` (no `print`)
+- [x] **FOUND-06**: Repository errors are not swallowed — malformed ids map to not-found, datastore outages surface as 5xx and are logged via `logging` (no `print`)
 - [ ] **FOUND-07**: ADRs recorded for id format, timestamp representation, soft-delete semantics, token format, `owner` semantics, and the per-resource authorization policy table
 
 ### Authentication & Authorization
@@ -127,7 +127,7 @@
 | FOUND-03 | Phase 1 | Complete |
 | FOUND-04 | Phase 1 | Pending |
 | FOUND-05 | Phase 1 | Pending |
-| FOUND-06 | Phase 1 | Pending |
+| FOUND-06 | Phase 1 | Complete |
 | FOUND-07 | Phase 1 | Pending |
 | AUTH-01 | Phase 2 | Pending |
 | AUTH-02 | Phase 2 | Pending |
