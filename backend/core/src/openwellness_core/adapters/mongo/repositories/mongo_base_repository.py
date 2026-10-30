@@ -3,11 +3,12 @@
 from typing import Any, Generic, Type, TypeVar
 
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 
 from ....application.repositories.base_crud_repository import BaseCrudRepository
 from ....domain.exceptions.domain_exception import EntityNotFoundException
 from ....domain.models.base_entity import BaseEntity
-from ...exceptions import AdapterException
+from ...exceptions import AdapterException, DuplicateEntityException
 from ...interfaces.collection_repository import CollectionRepository
 from ...interfaces.results.delete_result import DeleteResult
 from ..model.mongo_base_entity import MongoBaseEntity
@@ -47,9 +48,16 @@ class MongoBaseRepository(BaseCrudRepository, Generic[Entity, Persistence]):
     def _from_doc(self, doc: dict) -> Entity:
         return self.persistence_type.model_validate(doc).to_domain(self.entity_type)
 
+    def _duplicate(self, exc: DuplicateKeyError) -> DuplicateEntityException:
+        # Collection only: the duplicated key value can be an email.
+        return DuplicateEntityException(f"{self._collection_name}: duplicate key")
+
     def create(self, entity: Entity) -> Entity:
         collection = self.repo[self._collection_name]
-        result = collection.insert_one(self._to_doc(entity))
+        try:
+            result = collection.insert_one(self._to_doc(entity))
+        except DuplicateKeyError as exc:
+            raise self._duplicate(exc) from exc
         entity.id = str(result.inserted_id)
         fetched = collection.find_one({"_id": result.inserted_id})
         if fetched is None:
@@ -85,7 +93,10 @@ class MongoBaseRepository(BaseCrudRepository, Generic[Entity, Persistence]):
         if oid is None:
             raise EntityNotFoundException(f"Entity {entity.id} not found")
         collection = self.repo[self._collection_name]
-        collection.update_one({"_id": oid}, {"$set": self._to_doc(entity)})
+        try:
+            collection.update_one({"_id": oid}, {"$set": self._to_doc(entity)})
+        except DuplicateKeyError as exc:
+            raise self._duplicate(exc) from exc
         return entity
 
     def delete(self, entity_id: str) -> DeleteResult:
