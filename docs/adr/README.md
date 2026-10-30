@@ -27,3 +27,4 @@ Short MADR, about one page per file:
 | [0004](0004-access-token-format.md) | Access token format | Accepted |
 | [0005](0005-owner-semantics.md) | Owner semantics | Accepted |
 | [0006](0006-coach-study-scope.md) | Coach study scope and claim | Accepted |
+| [0007](0007-authorization-policy-table.md) | Authorization policy table | Accepted |
