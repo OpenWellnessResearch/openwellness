@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. OTP login, registration and refresh still work end to end after users-by-email lookup and refresh sessions move behind repository ports, and no domain entity imports `bson` or any other datastore type
   4. A request with a malformed resource id returns 404, and a datastore outage returns a 5xx with the error logged through `logging` instead of an empty result
   5. ADRs record the id format, timestamp representation, soft-delete semantics, token format, `owner` semantics and the per-resource authorization policy table
-**Plans**: 9/11 plans executed
+**Plans**: 11/11 plans executed
 
 Plans:
 **Wave 1**
@@ -56,12 +56,12 @@ Plans:
 - [x] 01-09-PLAN.md — ADRs 0006-0007: coach study scope and the per-resource authorization policy table; requirements aligned with D-02
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-06-PLAN.md — `RefreshSessionRepository` port with a Mongo adapter, proven by contract tests
+- [x] 01-06-PLAN.md — `RefreshSessionRepository` port with a Mongo adapter, proven by contract tests
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 01-11-PLAN.md — `RefreshSessionStore` on the port, composition-root wiring (collection name still configurable); API auth source free of pymongo
+- [x] 01-11-PLAN.md — `RefreshSessionStore` on the port, composition-root wiring (collection name still configurable); API auth source free of pymongo
 **UI hint**: no
-**Research flag**: Standard refactor patterns, so skip research. The ADRs must settle `owner` semantics (user id vs participant id, confirmed from the legacy model and tests), archive/purge retention, and the coach authorization model (role gate in v1) before the auth, Postgres and sync phases are planned.
+**Research flag**: Standard refactor patterns, so skip research. The ADRs must settle `owner` semantics (user id vs participant id, confirmed from the legacy model and tests), archive/purge retention, and the coach authorization model (study-scoped per D-02, ADR 0006) before the auth, Postgres and sync phases are planned.
 
 ### Phase 2: Route Authentication & Authorization
 **Goal**: No participant health data is reachable without a verified token, and every caller can reach only what their identity and role allow
@@ -70,12 +70,12 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. An anonymous request to any `/v1` route other than `/v1/auth:*` and `/healthz` returns 401, proven by a test that enumerates every registered route, and the `enforce_principal` flag no longer exists
   2. A participant can read and write resources under their own `{user}`, while another user's resources return 404, including when reached through `filter=`
-  3. A non-admin gets 403 on admin resources and the user list, and a participant gets 403 on coach-facing endpoints that coaches and admins can use
+  3. A non-admin gets 403 on admin resources and the user list, and a participant gets 403 on coach-facing endpoints that coaches and admins can use; a coach reads or writes participant data only for participants in studies listed in their coach_studies claim, and gets 404 for any other study
   4. Audit fields such as `updated_by` record the token's identity even when a request sends a forged `X-Principal-Id` header
   5. A coach can sign in and work in the dashboard, and a participant can sign in and use the mobile app, end to end against the enforced API
 **Plans**: TBD
 **UI hint**: no
-**Research flag**: Coach authorization needs a decision session, not a spike. In v1 it is a role gate, and per-study scoping is recorded as a documented limit (deferred to AUTHZ-01). Run a logging-only pass first to find dashboard or mobile calls that are currently unauthenticated, then switch to enforcement.
+**Research flag**: Coach authorization is decided: study-scoped through the coach_studies claim (D-02, ADRs 0006 and 0007), and Phase 2 implements the ADR 0007 table. Run a logging-only pass first to find dashboard or mobile calls that are currently unauthenticated, then switch to enforcement.
 
 ### Phase 3: Token Signing & Refresh Hardening
 **Goal**: Other services can verify access tokens through a published JWKS without sharing any secret, and participants stay logged in when two clients refresh at the same moment
@@ -214,7 +214,7 @@ Declared dependencies allow parallel streams. Phase 4 waits for Phase 3 so the P
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundations & Architecture Decisions | 9/11 | In Progress | - |
+| 1. Foundations & Architecture Decisions | 11/11 | In Progress | - |
 | 2. Route Authentication & Authorization | 0/TBD | Not started | - |
 | 3. Token Signing & Refresh Hardening | 0/TBD | Not started | - |
 | 4. Postgres Foundation & Auth on Postgres | 0/TBD | Not started | - |
