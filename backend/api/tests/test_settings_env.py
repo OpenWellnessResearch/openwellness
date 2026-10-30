@@ -39,3 +39,25 @@ def test_api_app_config_loads_env_file_from_backend_dir(tmp_path: Path) -> None:
         ("MONGO_DB", "COUCHBASE_BUCKET_NAME"),
     )
     assert out.split() == ["from-env-file", "bucket-from-file"]
+
+
+def test_scheduler_and_api_share_one_app_config() -> None:
+    from openwellness_api.config import AppConfig as ApiAppConfig
+    from openwellness_scheduler.config import AppConfig as SchedulerAppConfig
+
+    assert ApiAppConfig is SchedulerAppConfig
+
+
+def test_scheduler_celery_settings_load_env_file_from_scheduler_dir(
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / "test.env"
+    env_file.write_text("CELERY_BROKER_URL=memory://from-file\n")
+    out = _run(
+        "from openwellness_scheduler.config import CelerySettings\n"
+        "print(CelerySettings().broker_url)",
+        BACKEND_DIR / "scheduler",
+        env_file,
+        ("CELERY_BROKER_URL",),
+    )
+    assert out.strip() == "memory://from-file"
