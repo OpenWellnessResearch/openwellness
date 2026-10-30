@@ -628,6 +628,7 @@ dependencies = [
     { name = "couchbase" },
     { name = "dependency-injector" },
     { name = "pydantic" },
+    { name = "pydantic-settings" },
     { name = "pymongo" },
     { name = "requests" },
 ]
@@ -644,6 +645,7 @@ requires-dist = [
     { name = "couchbase", specifier = ">=4.2" },
     { name = "dependency-injector", specifier = ">=4.41" },
     { name = "pydantic", specifier = ">=2.7" },
+    { name = "pydantic-settings", specifier = ">=2.3" },
     { name = "pymongo", specifier = ">=4.7,<4.14" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
