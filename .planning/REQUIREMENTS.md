@@ -13,7 +13,7 @@
 - [ ] **FOUND-04**: Domain entities carry no datastore-specific types (`bson.ObjectId` removed from domain; coercion lives in the Mongo adapter)
 - [ ] **FOUND-05**: Auth persistence (users-by-email lookup, refresh sessions) goes through repository ports instead of direct pymongo / Mongo-dict queries
 - [x] **FOUND-06**: Repository errors are not swallowed — malformed ids map to not-found, datastore outages surface as 5xx and are logged via `logging` (no `print`)
-- [ ] **FOUND-07**: ADRs recorded for id format, timestamp representation, soft-delete semantics, token format, `owner` semantics, and the per-resource authorization policy table
+- [x] **FOUND-07**: ADRs recorded for id format, timestamp representation, soft-delete semantics, token format, `owner` semantics, and the per-resource authorization policy table
 
 ### Authentication & Authorization
 
@@ -128,7 +128,7 @@
 | FOUND-04 | Phase 1 | Pending |
 | FOUND-05 | Phase 1 | Pending |
 | FOUND-06 | Phase 1 | Complete |
-| FOUND-07 | Phase 1 | Pending |
+| FOUND-07 | Phase 1 | Complete |
 | AUTH-01 | Phase 2 | Pending |
 | AUTH-02 | Phase 2 | Pending |
 | AUTH-03 | Phase 2 | Pending |
