@@ -122,12 +122,72 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| FOUND-01 | Phase 1 | Pending |
+| FOUND-02 | Phase 1 | Pending |
+| FOUND-03 | Phase 1 | Pending |
+| FOUND-04 | Phase 1 | Pending |
+| FOUND-05 | Phase 1 | Pending |
+| FOUND-06 | Phase 1 | Pending |
+| FOUND-07 | Phase 1 | Pending |
+| AUTH-01 | Phase 2 | Pending |
+| AUTH-02 | Phase 2 | Pending |
+| AUTH-03 | Phase 2 | Pending |
+| AUTH-04 | Phase 2 | Pending |
+| AUTH-05 | Phase 2 | Pending |
+| AUTH-06 | Phase 2 | Pending |
+| AUTH-07 | Phase 3 | Pending |
+| AUTH-08 | Phase 3 | Pending |
+| AUTH-09 | Phase 2 | Pending |
+| PG-01 | Phase 5 | Pending |
+| PG-02 | Phase 4 | Pending |
+| PG-03 | Phase 5 | Pending |
+| PG-04 | Phase 4 | Pending |
+| PG-05 | Phase 4 | Pending |
+| PG-06 | Phase 4 | Pending |
+| PG-07 | Phase 4 | Pending |
+| PG-08 | Phase 5 | Pending |
+| SYNC-01 | Phase 6 | Pending |
+| SYNC-02 | Phase 6 | Pending |
+| SYNC-03 | Phase 6 | Pending |
+| SYNC-04 | Phase 6 | Pending |
+| SYNC-05 | Phase 7 | Pending |
+| SYNC-06 | Phase 7 | Pending |
+| SYNC-07 | Phase 7 | Pending |
+| SYNC-08 | Phase 6 | Pending |
+| SYNC-09 | Phase 6 | Pending |
+| MOB-01 | Phase 8 | Pending |
+| MOB-02 | Phase 9 | Pending |
+| MOB-03 | Phase 9 | Pending |
+| MOB-04 | Phase 8 | Pending |
+| MOB-05 | Phase 8 | Pending |
+| MOB-06 | Phase 9 | Pending |
+| MOB-07 | Phase 8 | Pending |
+| MOB-08 | Phase 8 | Pending |
+| MOB-09 | Phase 8 | Pending |
+| KIT-01 | Phase 10 | Pending |
+| KIT-02 | Phase 10 | Pending |
+| KIT-03 | Phase 10 | Pending |
+| KIT-04 | Phase 11 | Pending |
+| KIT-05 | Phase 11 | Pending |
+| KIT-06 | Phase 11 | Pending |
+| KIT-07 | Phase 10 | Pending |
+| KIT-08 | Phase 11 | Pending |
+| KIT-09 | Phase 11 | Pending |
+| DOCS-01 | Phase 11 | Pending |
+| DOCS-02 | Phase 12 | Pending |
+| DOCS-03 | Phase 12 | Pending |
+| DOCS-04 | Phase 12 | Pending |
+| DOCS-05 | Phase 10 | Pending |
+| DOCS-06 | Phase 11 | Pending |
+| DOCS-07 | Phase 12 | Pending |
+| DOCS-08 | Phase 12 | Pending |
+| DOCS-09 | Phase 6 | Pending |
 
 **Coverage:**
 - v1 requirements: 60 total
-- Mapped to phases: 0
-- Unmapped: 60 ⚠️
+- Mapped to phases: 60
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-10-29*
-*Last updated: 2026-10-29 after initial definition*
+*Last updated: 2026-10-29 after roadmap creation (traceability mapped)*
