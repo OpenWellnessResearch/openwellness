@@ -1,0 +1,55 @@
+name: CI
+
+# Unprivileged pull_request trigger only (no secrets, safe for fork PRs).
+# No paths filters: a docs-only PR must still report every check.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (pytest, pyright, N1QL lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - id: sync
+        name: Install dependencies
+        run: uv sync --frozen --extra dev
+      # Each check runs even if a sibling failed, so one red suite never hides another.
+      - name: core tests
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        working-directory: backend/core
+        run: uv run --frozen pytest
+      - name: api tests
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        working-directory: backend/api
+        run: uv run --frozen pytest
+      - name: scheduler tests
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        working-directory: backend/scheduler
+        run: uv run --frozen pytest
+      # pyright exits non-zero on errors only; warnings stay downgraded (D-16).
+      - name: pyright
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        working-directory: backend
+        run: uv run --frozen pyright
+      - name: N1QL f-string lint
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        run: uv run --frozen python core/scripts/check_no_fstring_n1ql.py

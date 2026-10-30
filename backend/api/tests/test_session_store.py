@@ -32,7 +32,9 @@ from openwellness_api.auth.session_store import (
 
 
 FIXED_NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
-FUTURE = FIXED_NOW + timedelta(days=30)
+# Fixed far-future: mongomock sweeps TTL-indexed docs by real wall-clock time,
+# so a FIXED_NOW-relative expiry becomes a time bomb once that date passes.
+FUTURE = datetime(2099, 1, 1, tzinfo=timezone.utc)
 
 # pymongo (and mongomock, faithfully) store datetimes as UTC and return them
 # tz-*naive* on read with default codec options. The store writes the tz-aware
