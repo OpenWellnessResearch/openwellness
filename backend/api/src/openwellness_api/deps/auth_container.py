@@ -8,9 +8,9 @@ the relevant provider is first resolved). Every collaborator is a
 (``app.state.auth_container.<name>.override(providers.Object(fake))``) is the
 single mechanism the API test suite uses to inject fakes.
 
-The Mongo refresh-session collection handle is owned by the *main* container,
-so :attr:`AuthContainer.refresh_collection` is a ``Dependency`` placeholder
-supplied at lifespan time. ``auth_service_dep`` assembles an
+The refresh-session repository is owned by the *main* container's
+``RepositoryContainer``, so :attr:`AuthContainer.refresh_session_repository` is
+a ``Dependency`` placeholder supplied at lifespan time. ``auth_service_dep`` assembles an
 :class:`AuthService` per request by reading collaborators off the live
 ``auth_container`` and the identity repos off the live ``container`` — so any
 test override on either container is honored.
@@ -87,16 +87,16 @@ class AuthContainer(containers.DeclarativeContainer):
     )
     email_sender = providers.Singleton(SmtpEmailSender, settings=smtp_settings)
 
-    # Supplied at lifespan time from the main container's Mongo handle:
-    # ``auth_container.refresh_collection.override(providers.Object(coll))``.
+    # Supplied at lifespan time from the main container:
+    # ``auth_container.refresh_session_repository.override(providers.Object(repo))``.
     # In tests ``session_store`` is overridden directly, so this is never
-    # resolved. ``Factory`` (not ``Singleton``) so ``refresh_collection`` is
-    # resolved fresh on each call: a resolution before the lifespan override
-    # fails immediately instead of caching a broken instance for the process
-    # lifetime. The wrapper is cheap (a collection handle + clock).
-    refresh_collection = providers.Dependency()
+    # resolved. ``Factory`` (not ``Singleton``) so the repository is resolved
+    # fresh on each call: a resolution before the lifespan override fails
+    # immediately instead of caching a broken instance for the process
+    # lifetime. The wrapper is cheap (a port + clock).
+    refresh_session_repository = providers.Dependency()
     session_store = providers.Factory(
-        RefreshSessionStore, collection=refresh_collection, clock=clock
+        RefreshSessionStore, repo=refresh_session_repository, clock=clock
     )
 
 

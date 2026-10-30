@@ -23,6 +23,10 @@ import mongomock
 import pymongo.errors
 import pytest
 
+from openwellness_core.adapters.mongo.repositories.mongo_refresh_session_repository import (
+    MongoRefreshSessionRepository,
+)
+
 from openwellness_api.auth.session_store import (
     RefreshInvalid,
     RefreshReuse,
@@ -54,9 +58,15 @@ def _store(
     clock: Callable[[], datetime] | None = None,
 ) -> RefreshSessionStore:
     return RefreshSessionStore(
-        collection=collection if collection is not None else _collection(),
+        repo=MongoRefreshSessionRepository(
+            collection=collection if collection is not None else _collection()
+        ),
         clock=clock or (lambda: FIXED_NOW),
     )
+
+
+def _ensure_indexes(collection: Any) -> None:
+    MongoRefreshSessionRepository(collection=collection).ensure_indexes()
 
 
 def _create_initial(
@@ -87,8 +97,7 @@ def _create_initial(
 # --------------------------------------------------------------------------- #
 def test_ensure_indexes_declares_expected_indexes() -> None:
     collection = _collection()
-    store = _store(collection=collection)
-    store.ensure_indexes()
+    _ensure_indexes(collection)
 
     info = collection.index_information()
 
@@ -110,9 +119,9 @@ def test_ensure_indexes_declares_expected_indexes() -> None:
 
 
 def test_ensure_indexes_is_idempotent() -> None:
-    store = _store()
-    store.ensure_indexes()
-    store.ensure_indexes()  # must not raise
+    collection = _collection()
+    _ensure_indexes(collection)
+    _ensure_indexes(collection)  # must not raise
 
 
 # --------------------------------------------------------------------------- #
@@ -361,7 +370,9 @@ def test_cas_matched_zero_branch_revokes_family() -> None:
                 "familyId": "fam-F",
                 "rotatedAt": None,
                 "revoked": False,
+                "issuedAt": FIXED_NOW,
                 "expiresAt": FUTURE,
+                "createdBy": "user-1",
             }
 
         def update_one(self, filter: Any, update: Any) -> Any:
@@ -553,7 +564,7 @@ def test_unique_token_hash_is_enforced() -> None:
     # is still declared in ensure_indexes() and enforced by real Mongo.)
     collection = _collection()
     store = _store(collection=collection)
-    store.ensure_indexes()
+    _ensure_indexes(collection)
     _create_initial(store, token_hash="dup")
 
     with pytest.raises(pymongo.errors.DuplicateKeyError):

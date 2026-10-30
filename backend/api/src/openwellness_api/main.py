@@ -55,15 +55,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     container.wire(modules=_WIRED_MODULES)
 
     try:
-        # The Mongo refresh-session collection handle is owned by the MAIN
-        # container; hand it to the auth container so its session store can use
-        # it. If this (or ensure_indexes / redis construction) raises, the
-        # finally: below still cleans up the already-open Couchbase cluster.
-        coll = container.repositories.collection_repository()[
-            s.refresh_collection
-        ]
-        auth_container.refresh_collection.override(providers.Object(coll))
-        auth_container.session_store().ensure_indexes()
+        # The refresh-session repository is owned by the MAIN container; hand
+        # it to the auth container. The collection name is overridden first so
+        # a customized API_AUTH_REFRESH_COLLECTION keeps its live sessions. If
+        # this (or ensure_indexes / redis construction) raises, the finally:
+        # below still cleans up the already-open Couchbase cluster.
+        container.repositories.refresh_session_collection.override(providers.Object(s.refresh_collection))
+        refresh_repo = container.repositories.refresh_session()
+        refresh_repo.ensure_indexes()
+        auth_container.refresh_session_repository.override(providers.Object(refresh_repo))
 
         # Construct/open the Redis client now (lazy provider). Do NOT hard-fail
         # startup if Redis is down — it may come up later, and the per-request
