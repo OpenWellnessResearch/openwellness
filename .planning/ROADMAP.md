@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. OTP login, registration and refresh still work end to end after users-by-email lookup and refresh sessions move behind repository ports, and no domain entity imports `bson` or any other datastore type
   4. A request with a malformed resource id returns 404, and a datastore outage returns a 5xx with the error logged through `logging` instead of an empty result
   5. ADRs record the id format, timestamp representation, soft-delete semantics, token format, `owner` semantics and the per-resource authorization policy table
-**Plans**: 4/11 plans executed
+**Plans**: 5/11 plans executed
 
 Plans:
 **Wave 1**
@@ -47,7 +47,7 @@ Plans:
 - [x] 01-07-PLAN.md — ADRs 0001-0004: id format, timestamps, soft delete/purge, token format
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-04-PLAN.md — Participant ids become plain strings in the domain; the Mongo adapter owns ObjectId coercion
+- [x] 01-04-PLAN.md — Participant ids become plain strings in the domain; the Mongo adapter owns ObjectId coercion
 - [ ] 01-08-PLAN.md — ADR 0005: `owner` semantics from evidence (developer checkpoint)
 - [ ] 01-10-PLAN.md — Document the repo-root `.env`; localhost values for direct runs, compose overrides for Redis hostnames
 
@@ -214,7 +214,7 @@ Declared dependencies allow parallel streams. Phase 4 waits for Phase 3 so the P
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundations & Architecture Decisions | 4/11 | In Progress | - |
+| 1. Foundations & Architecture Decisions | 5/11 | In Progress | - |
 | 2. Route Authentication & Authorization | 0/TBD | Not started | - |
 | 3. Token Signing & Refresh Hardening | 0/TBD | Not started | - |
 | 4. Postgres Foundation & Auth on Postgres | 0/TBD | Not started | - |
