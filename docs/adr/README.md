@@ -26,3 +26,4 @@ Short MADR, about one page per file:
 | [0003](0003-soft-delete-archive-purge.md) | Soft delete, archive and purge | Accepted |
 | [0004](0004-access-token-format.md) | Access token format | Accepted |
 | [0005](0005-owner-semantics.md) | Owner semantics | Accepted |
+| [0006](0006-coach-study-scope.md) | Coach study scope and claim | Accepted |
