@@ -20,6 +20,7 @@ from openwellness_core.domain.exceptions.domain_exception import (
     UnexpectedCount,
 )
 
+from ..config import APISettings
 from .responses import build_error
 
 logger = logging.getLogger(__name__)
@@ -176,14 +177,28 @@ def register_exception_handlers(app: FastAPI) -> None:
         can carry host names and query fragments. Never log request bodies or
         headers here.
         """
+        # No exc_info: Starlette re-raises after this handler responds, so
+        # uvicorn already logs the traceback; a second one would be noise.
         logger.error(
             "Unhandled %s on %s %s",
             type(exc).__name__,
             request.method,
             request.url.path,
-            exc_info=exc,
+        )
+        # ServerErrorMiddleware runs outside CORSMiddleware, so a browser would
+        # see this 500 as an opaque network failure unless we add the headers.
+        origin = request.headers.get("origin")
+        headers = (
+            {
+                "access-control-allow-origin": origin,
+                "access-control-allow-credentials": "true",
+                "vary": "Origin",
+            }
+            if origin and origin in APISettings().cors_origins_list
+            else {}
         )
         return JSONResponse(
             status_code=500,
+            headers=headers,
             content=build_error(500, "INTERNAL", "Internal error."),
         )

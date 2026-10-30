@@ -90,6 +90,17 @@ def test_outage_on_get_returns_logged_500(
     )
 
 
+def test_500_carries_cors_headers_for_allowed_origin_only(
+    down_client: TestClient,
+) -> None:
+    url = f"/v1/users/{ObjectId()}"
+    ok = down_client.get(url, headers={"Origin": "http://localhost:5173"})
+    assert ok.status_code == 500
+    assert ok.headers["access-control-allow-origin"] == "http://localhost:5173"
+    other = down_client.get(url, headers={"Origin": "http://evil.example"})
+    assert "access-control-allow-origin" not in other.headers
+
+
 def test_outage_on_list_returns_500_not_empty_list(down_client: TestClient) -> None:
     r = down_client.get("/v1/users")
     assert r.status_code == 500
