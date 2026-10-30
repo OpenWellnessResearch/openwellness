@@ -21,3 +21,11 @@ class LimitExceededException(Exception):
         self.start = start
         self.end = end
         self.retry_after_secs = retry_after_secs
+
+
+class DuplicateEntityException(Exception):
+    """Raised by adapters from ``create``/``save`` on a uniqueness violation.
+
+    The message names the collection only, never the duplicated key value,
+    because that value can be an email.
+    """
