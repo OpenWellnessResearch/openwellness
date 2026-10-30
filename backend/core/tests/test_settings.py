@@ -81,3 +81,34 @@ def test_postgres_url_defaults_to_empty(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.delenv("POSTGRES_URL", raising=False)
     settings = PostgresSettings(_env_file=None)  # type: ignore[call-arg]
     assert settings.url == ""
+
+
+def test_app_settings_read_from_env_file(tmp_path: Path) -> None:
+    from openwellness_core.infrastructure.config.settings import AppSettings
+
+    env = tmp_path / ".env"
+    env.write_text("APP_STORE_ID=123\nAPP_IOS_BUNDLE_ID=edu.x\n")
+    cfg = AppSettings(_env_file=env)  # type: ignore[call-arg]
+    assert (cfg.store_id, cfg.ios_bundle_id, cfg.one_signal_app_id) == (
+        "123",
+        "edu.x",
+        None,
+    )
+
+
+def test_create_app_stamps_settings_values() -> None:
+    from typing import Any, cast
+
+    from openwellness_core.adapters.mongo.repositories.mongo_app_repository import (
+        MongoAppRepository,
+    )
+    from openwellness_core.infrastructure.config.settings import AppSettings
+
+    class _Repo(MongoAppRepository):
+        def create(self, entity: Any) -> Any:  # no datastore needed
+            return entity
+
+    cfg = AppSettings(store_id="42")
+    repo = _Repo(cast(Any, None), app_settings=cfg)
+    assert repo.create_app("a").app_store_id == "42"
+    assert repo.create_app("a", False).app_store_id is None

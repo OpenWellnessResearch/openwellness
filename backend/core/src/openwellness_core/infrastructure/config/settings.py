@@ -95,6 +95,20 @@ class PostgresSettings(OpenWellnessSettings):
     url: str = ""
 
 
+class AppSettings(OpenWellnessSettings):
+    """Default App-entity identifiers stamped on unlisted-link apps.
+
+    Read through pydantic-settings so a repo-root ``.env`` works on direct
+    runs; ``os.environ`` alone never sees it.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="APP_")
+
+    store_id: str | None = None
+    ios_bundle_id: str | None = None
+    one_signal_app_id: str | None = None
+
+
 class AppConfig(AppConfigInterface):
     """Concrete config — composes core's protocol-typed sub-settings."""
 
