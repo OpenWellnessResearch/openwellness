@@ -94,3 +94,61 @@ def test_outage_on_list_returns_500_not_empty_list(down_client: TestClient) -> N
     r = down_client.get("/v1/users")
     assert r.status_code == 500
     assert r.json()["error"]["status"] == "INTERNAL"
+
+
+# --- Task 2: every id conversion is guarded --------------------------------- #
+
+from openwellness_core.adapters.mongo.repositories.mongo_device_repository import (
+    MongoDeviceRepository,
+)
+from openwellness_core.adapters.mongo.repositories.mongo_participant_repository import (
+    MongoParticipantRepository,
+)
+from openwellness_core.domain.exceptions.domain_exception import (
+    EntityNotFoundException,
+)
+
+
+def _db() -> Any:
+    return mongomock.MongoClient()["testdb"]
+
+
+def test_save_with_malformed_id_raises_not_found() -> None:
+    repo = MongoUserRepository(repo=_db())
+    with pytest.raises(EntityNotFoundException):
+        repo.save(User(id="bad", email="x@example.com", is_active=True, username="x"))
+
+
+def test_delete_with_malformed_id_raises_not_found() -> None:
+    with pytest.raises(EntityNotFoundException):
+        MongoUserRepository(repo=_db()).delete("bad")
+
+
+def test_unarchive_with_malformed_id_is_noop_without_db_access() -> None:
+    assert MongoUserRepository(repo=_DownDb()).unarchive("bad") is None
+
+
+def test_device_by_malformed_participant_id_returns_empty() -> None:
+    repo = MongoDeviceRepository(mongo_repo=_db())
+    assert repo.get_by_participant_id("bad") == []
+
+
+def test_participant_lookups_with_malformed_study_id_return_nothing() -> None:
+    repo = MongoParticipantRepository(mongo_repo=_db())
+    assert repo.get_by_study_id("bad") == []
+    assert repo.get_by_num_study_id("A-1", "bad") is None
+
+
+def test_outage_on_delete_and_unarchive_propagates() -> None:
+    repo = MongoUserRepository(repo=_DownDb())
+    with pytest.raises(ServerSelectionTimeoutError):
+        repo.delete(str(ObjectId()))
+    with pytest.raises(ServerSelectionTimeoutError):
+        repo.unarchive(str(ObjectId()))
+
+
+def test_delete_malformed_id_through_api_returns_404(
+    client: TestClient, mongo_repo: Any
+) -> None:
+    r = client.delete("/v1/users/not-an-object-id")
+    assert r.status_code == 404
