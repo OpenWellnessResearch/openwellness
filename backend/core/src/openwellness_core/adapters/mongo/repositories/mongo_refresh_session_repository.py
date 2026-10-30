@@ -15,6 +15,7 @@ from ....application.repositories.refresh_session_repository import (
     RefreshSession,
     RefreshSessionRepository,
 )
+from .mongo_base_repository import object_id_or_none
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -85,25 +86,54 @@ class MongoRefreshSessionRepository(RefreshSessionRepository):
         return None if doc is None else self._to_session(doc)
 
     def mark_rotated(self, session_id: str, *, rotated_at: datetime) -> bool:
-        raise NotImplementedError("Task 2")
+        oid = object_id_or_none(session_id)
+        if oid is None:
+            return False
+        res = self._collection.update_one(
+            {"_id": oid, "rotatedAt": None, "revoked": False},
+            {"$set": {"rotatedAt": rotated_at}},
+        )
+        return res.matched_count == 1
 
     def clear_rotated(self, session_id: str, *, rotated_at: datetime) -> None:
-        raise NotImplementedError("Task 2")
+        oid = object_id_or_none(session_id)
+        if oid is None:
+            return
+        self._collection.update_one(
+            {"_id": oid, "rotatedAt": rotated_at},
+            {"$set": {"rotatedAt": None}},
+        )
+
+    @staticmethod
+    def _revocation(reason: str, revoked_at: datetime) -> dict:
+        return {
+            "$set": {
+                "revoked": True,
+                "revokedAt": revoked_at,
+                "revokedReason": reason,
+            }
+        }
 
     def revoke_by_token_hash(
         self, token_hash: str, *, reason: str, revoked_at: datetime
     ) -> None:
-        raise NotImplementedError("Task 2")
+        self._collection.update_one(
+            {"tokenHash": token_hash}, self._revocation(reason, revoked_at)
+        )
 
     def revoke_family(
         self, family_id: str, *, reason: str, revoked_at: datetime
     ) -> None:
-        raise NotImplementedError("Task 2")
+        self._collection.update_many(
+            {"familyId": family_id}, self._revocation(reason, revoked_at)
+        )
 
     def revoke_all_for_user(
         self, user_id: str, *, reason: str, revoked_at: datetime
     ) -> None:
-        raise NotImplementedError("Task 2")
+        self._collection.update_many(
+            {"userId": user_id}, self._revocation(reason, revoked_at)
+        )
 
     @staticmethod
     def _to_session(doc: dict) -> RefreshSession:
