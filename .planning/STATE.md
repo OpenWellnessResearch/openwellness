@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Foundations & Architecture Decisions
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-10-30T13:06:22.750Z"
+stopped_at: Completed 01-07-PLAN.md
+last_updated: "2026-10-30T13:08:33.151Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 01 execution started
-state_head: 7aa951a5fae7ad0c9763273284e71e101470aebc
+state_head: 823fc90b46933eb23b08042ef32a5c5c1c298c13
 progress:
   total_phases: 12
   completed_phases: 0
   total_plans: 11
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 01 (Foundations & Architecture Decisions) — EXECUTING
-Plan: 4 of 11
+Plan: 5 of 11
 Status: Ready to execute
 Last activity: 2026-10-30 — Phase 01 execution started
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 5 min | 3 tasks | 4 files |
 | Phase 01 P02 | 20min | 2 tasks | 10 files |
 | Phase 01 P03 | 15min | 2 tasks | 5 files |
+| Phase 01 P07 | 8min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,10 @@ Recent decisions affecting current work:
 - [Phase 01]: Dashboard CI pinned to Node 22 (Node 25+ built-in localStorage breaks jsdom suites); pyright scope left at core only
 - [Phase 01]: Env file resolved at repo root via docker-compose.yml marker; OPENWELLNESS_ENV_FILE overrides; precedence env > .env > defaults
 - [Phase 01]: 01-03: Mongo malformed id is not-found; datastore errors propagate; API catch-all returns generic logged 500 INTERNAL
+- [Phase 01]: Primary keys are text UUIDv4 via uuid.uuid4(); validation accepts any UUID version (ADR 0001)
+- [Phase 01]: Timestamps stored as double precision epoch seconds; wire stays RFC 3339 (ADR 0002)
+- [Phase 01]: Archive sets deleted_at; undelete indefinite; purge admin-only hard delete (ADR 0003)
+- [Phase 01]: Access tokens EdDSA Ed25519 with kid and JWKS; separate aud=powersync token; HS256 retired; no participant study claim (ADR 0004)
 
 ### Pending Todos
 
@@ -99,6 +104,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T13:06:22.732Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-10-30T13:08:33.132Z
+Stopped at: Completed 01-07-PLAN.md
 Resume file: None
