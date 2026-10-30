@@ -152,3 +152,37 @@ def test_delete_malformed_id_through_api_returns_404(
 ) -> None:
     r = client.delete("/v1/users/not-an-object-id")
     assert r.status_code == 404
+
+
+# --- Duplicate-key collisions become DuplicateEntityException ---------------- #
+
+from pymongo.errors import DuplicateKeyError
+
+from openwellness_core.application.exceptions import DuplicateEntityException
+
+_DUP_EMAIL = "a@example.com"
+
+
+def _unique_email_repo() -> MongoUserRepository:
+    db = _db()
+    db["users"].create_index("email", unique=True)
+    return MongoUserRepository(repo=db)
+
+
+def test_create_duplicate_email_raises_duplicate_entity() -> None:
+    repo = _unique_email_repo()
+    repo.create(User(email=_DUP_EMAIL, is_active=True, username="a"))
+    with pytest.raises(DuplicateEntityException) as ei:
+        repo.create(User(email=_DUP_EMAIL, is_active=True, username="b"))
+    assert isinstance(ei.value.__cause__, DuplicateKeyError)
+    assert _DUP_EMAIL not in str(ei.value)
+
+
+def test_save_to_existing_email_raises_duplicate_entity() -> None:
+    repo = _unique_email_repo()
+    repo.create(User(email=_DUP_EMAIL, is_active=True, username="a"))
+    other = repo.create(User(email="b@example.com", is_active=True, username="b"))
+    other.email = _DUP_EMAIL
+    with pytest.raises(DuplicateEntityException) as ei:
+        repo.save(other)
+    assert _DUP_EMAIL not in str(ei.value)

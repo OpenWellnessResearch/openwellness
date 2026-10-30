@@ -617,13 +617,13 @@ def test_registration_email_collision_is_uniform_400(ctx: _Ctx) -> None:
 
     The real user collection has a unique email index; if a DIFFERENT
     unverified user already holds the normalized email, ``save`` raises
-    ``pymongo.errors.DuplicateKeyError``. That must be caught and re-raised as
+    ``DuplicateEntityException``. That must be caught and re-raised as
     ``errors.invalid_code()`` (status 400, generic message) rather than
     escaping as an unhandled 500 (which would also leak a distinguishable
     response shape).
     """
     from fastapi import HTTPException
-    from pymongo.errors import DuplicateKeyError
+    from openwellness_core.application.exceptions import DuplicateEntityException
 
     # Drive a real, valid registration verify (real OTP from the email).
     ctx.service.send_registration_code(
@@ -636,7 +636,7 @@ def test_registration_email_collision_is_uniform_400(ctx: _Ctx) -> None:
 
     # The save() now collides on the unique email index.
     def _raise_dup(_user: User) -> User:
-        raise DuplicateKeyError("dup")
+        raise DuplicateEntityException("dup")
 
     ctx.user_repo.save = _raise_dup  # type: ignore[method-assign]
 
