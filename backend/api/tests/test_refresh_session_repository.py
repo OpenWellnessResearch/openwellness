@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import mongomock
+import pytest
 
 from openwellness_core.adapters.mongo.repositories import (
     MongoRefreshSessionRepository,
@@ -97,3 +98,78 @@ def test_ensure_indexes_creates_named_indexes_and_is_idempotent() -> None:
     assert "ix_user_id" in info
     assert "ttl_expires_at" in info
     assert info["ttl_expires_at"].get("expireAfterSeconds") == 0
+
+
+def test_mark_rotated_is_single_use() -> None:
+    coll = _collection()
+    repo = _repo(coll)
+    repo.create(_session())
+    sid = repo.get_by_token_hash("h1").id  # type: ignore[union-attr]
+
+    assert repo.mark_rotated(sid, rotated_at=NOW) is True
+    assert repo.mark_rotated(sid, rotated_at=LATER) is False
+    assert _stored(coll, "h1")["rotatedAt"] == NOW.replace(tzinfo=None)
+
+
+def test_mark_rotated_false_on_revoked_session_and_writes_nothing() -> None:
+    coll = _collection()
+    repo = _repo(coll)
+    repo.create(_session())
+    repo.revoke_by_token_hash("h1", reason="logout", revoked_at=NOW)
+    sid = repo.get_by_token_hash("h1").id  # type: ignore[union-attr]
+
+    assert repo.mark_rotated(sid, rotated_at=NOW) is False
+    assert _stored(coll, "h1")["rotatedAt"] is None
+
+
+def test_mark_rotated_false_on_malformed_id() -> None:
+    assert _repo().mark_rotated("not-an-object-id", rotated_at=NOW) is False
+
+
+def test_clear_rotated_only_while_value_matches() -> None:
+    coll = _collection()
+    repo = _repo(coll)
+    repo.create(_session())
+    sid = repo.get_by_token_hash("h1").id  # type: ignore[union-attr]
+    repo.mark_rotated(sid, rotated_at=NOW)
+
+    repo.clear_rotated(sid, rotated_at=LATER)  # stale value: no-op
+    assert _stored(coll, "h1")["rotatedAt"] is not None
+
+    repo.clear_rotated(sid, rotated_at=NOW)
+    assert _stored(coll, "h1")["rotatedAt"] is None
+
+    repo.clear_rotated("not-an-object-id", rotated_at=NOW)  # no-op, no raise
+
+
+def test_revoke_by_token_hash_touches_that_session_only() -> None:
+    coll = _collection()
+    repo = _repo(coll)
+    repo.create(_session("h1"))
+    repo.create(_session("h2"))
+
+    repo.revoke_by_token_hash("h1", reason="logout", revoked_at=NOW)
+
+    h1, h2 = _stored(coll, "h1"), _stored(coll, "h2")
+    assert h1["revoked"] is True
+    assert h1["revokedAt"] == NOW.replace(tzinfo=None)
+    assert h1["revokedReason"] == "logout"
+    assert h2["revoked"] is False
+
+
+@pytest.mark.parametrize("scope", ["family", "user"])
+def test_bulk_revoke_is_scoped(scope: str) -> None:
+    coll = _collection()
+    repo = _repo(coll)
+    repo.create(_session("in1"))
+    repo.create(_session("in2"))
+    repo.create(_session("out", family_id="f2", user_id="u2"))
+
+    if scope == "family":
+        repo.revoke_family("f1", reason="reuse_detected", revoked_at=NOW)
+    else:
+        repo.revoke_all_for_user("u1", reason="logout_all", revoked_at=NOW)
+
+    assert _stored(coll, "in1")["revoked"] is True
+    assert _stored(coll, "in2")["revoked"] is True
+    assert _stored(coll, "out")["revoked"] is False
