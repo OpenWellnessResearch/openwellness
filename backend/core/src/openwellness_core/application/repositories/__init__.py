@@ -27,6 +27,7 @@ from .participant_group_repository import ParticipantGroupRepository
 from .participant_repository import ParticipantRepository
 from .physical_activity_repository import PhysicalActivityRepository
 from .post_repository import PostRepository
+from .refresh_session_repository import RefreshSession, RefreshSessionRepository
 from .session_repository import SessionRepository
 from .shared_goal_progress_repository import SharedGoalProgressRepository
 from .study_message_repository import StudyMessageRepository
