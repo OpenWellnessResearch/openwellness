@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 01
-current_phase_name: Foundations & Architecture Decisions
-status: verifying
-stopped_at: Completed 01-11-PLAN.md
-last_updated: "2026-10-30T14:42:59.257Z"
+current_phase: 2
+current_phase_name: Route Authentication & Authorization
+status: planning
+stopped_at: Phase 01 complete, ready to plan Phase 2
+last_updated: "2026-10-30T21:50:15.887Z"
 last_activity: 2026-10-30
-last_activity_desc: Phase 01 execution started
-state_head: a346beb77528f5960ee548166d202042ea6a3bb8
+last_activity_desc: Phase 01 complete, transitioned to Phase 2
+state_head: 3f3d47f3ef10ae3242588086a796a5cfbfc2bf8a
 progress:
   total_phases: 12
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 11
   completed_plans: 11
-  percent: 0
+  percent: 8
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-29)
+See: .planning/PROJECT.md (updated 2026-10-30)
 
 **Core value:** Someone who has never seen the codebase can clone the repo, follow the docs, and end up with a secured, working OpenWellness instance (Postgres-backed, offline-sync capable) that participants' phones and the coach dashboard can use.
-**Current focus:** Phase 01 — Foundations & Architecture Decisions
+**Current focus:** Phase 2 — Route Authentication & Authorization
 
 ## Current Position
 
-Phase: 01 (Foundations & Architecture Decisions) — EXECUTING
-Plan: 11 of 11
-Status: Phase complete — ready for verification
-Last activity: 2026-10-30 — Phase 01 execution started
+Phase: 2 — Route Authentication & Authorization
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-30 — Phase 01 complete, transitioned to Phase 2
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 8%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
+- Total plans completed: 11
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -45,7 +45,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01 | 11 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -101,8 +101,9 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1]: `owner` semantics (user id vs participant id) must be confirmed from the legacy model before any Sync Stream predicate is written (Phase 6)
-- [Phase 1]: Archive/purge semantics (restore window, retention) must be decided before Postgres soft-delete work (Phase 4)
+- [Phase 2]: Duplicate-email `POST /v1/users` is an email-existence oracle (409) until route auth lands; accepted in ADR 0007, must close in Phase 2
+- [Phase 2]: Fitbit rows still return `access_token`/`refresh_token` to any caller; ADR 0007 requires the response filter for non-admins
+- [Phase 6]: Conversation and participant-group membership predicate (ADR 0005 open point) must be defined before their Sync Stream rules
 - [Phase 4]: The Postgres refresh-session store must honor the refresh grace window from Phase 3 (cover it in the contract suite)
 - [Phase 6]: PowerSync Postgres bucket storage is Beta; spike it, with a second postgres container as fallback
 - [Phase 7]: Wearable sync volume is unproven; the 90-day load test may force windowed streams (a carve-out from "sync full participant data")
@@ -118,6 +119,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T14:42:59.238Z
-Stopped at: Completed 01-11-PLAN.md
+Last session: 2026-10-30T21:50:00Z
+Stopped at: Phase 01 complete, ready to plan Phase 2
 Resume file: None

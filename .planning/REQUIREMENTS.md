@@ -10,8 +10,8 @@
 - [x] **FOUND-01**: CI runs all backend suites (core, api, scheduler), pyright, and dashboard lint/typecheck/test/format and mobile host tests on every PR
 - [x] **FOUND-02**: Datastore and shared settings (Postgres, legacy Couchbase/Mongo, Redis) are defined once in `core` and consumed by both api and scheduler
 - [x] **FOUND-03**: Services load settings from a `.env` file when run directly (uvicorn/celery) as well as under docker compose, from one documented location
-- [ ] **FOUND-04**: Domain entities carry no datastore-specific types (`bson.ObjectId` removed from domain; coercion lives in the Mongo adapter)
-- [ ] **FOUND-05**: Auth persistence (users-by-email lookup, refresh sessions) goes through repository ports instead of direct pymongo / Mongo-dict queries
+- [x] **FOUND-04**: Domain entities carry no datastore-specific types (`bson.ObjectId` removed from domain; coercion lives in the Mongo adapter)
+- [x] **FOUND-05**: Auth persistence (users-by-email lookup, refresh sessions) goes through repository ports instead of direct pymongo / Mongo-dict queries
 - [x] **FOUND-06**: Repository errors are not swallowed — malformed ids map to not-found, datastore outages surface as 5xx and are logged via `logging` (no `print`)
 - [x] **FOUND-07**: ADRs recorded for id format, timestamp representation, soft-delete semantics, token format, `owner` semantics, and the per-resource authorization policy table
 
@@ -21,7 +21,7 @@
 - [ ] **AUTH-02**: A test enumerates every registered route and asserts anonymous access returns 401
 - [ ] **AUTH-03**: A participant can only read and write resources under their own `{user}`; another user's resources return 404 (including via `filter=`)
 - [ ] **AUTH-04**: Admin resources and the user list require the `admin` role (403 otherwise)
-- [ ] **AUTH-05**: Coach-facing endpoints require the `coach` or `admin` role (role gate only; per-study/participant scoping is documented as a v1 limit)
+- [ ] **AUTH-05**: Coach-facing endpoints require the `coach` or `admin` role, and a coach reads or writes only records whose study id is in their `coach_studies` claim, with every write also checked against the target owner's Participant record (ADRs 0006 and 0007); a record or participant in any other study returns 404; this absorbs the former v2 AUTHZ-01 (D-02)
 - [ ] **AUTH-06**: Audit fields (`updated_by`, etc.) come only from the verified token; the `X-Principal-Id` header is ignored
 - [ ] **AUTH-07**: Access tokens carry a `kid` header and are signed with an asymmetric key (EdDSA default); the API publishes a JWKS endpoint
 - [ ] **AUTH-08**: Concurrent refresh with the same refresh token within a short grace window does not trigger reuse-detection logout
@@ -90,7 +90,6 @@
 
 ### Authorization
 
-- **AUTHZ-01**: Coaches scoped to participants in their assigned studies
 - **AUTHZ-02**: Postgres row-level security as defense in depth
 
 ### Mobile
@@ -125,8 +124,8 @@
 | FOUND-01 | Phase 1 | Complete |
 | FOUND-02 | Phase 1 | Complete |
 | FOUND-03 | Phase 1 | Complete |
-| FOUND-04 | Phase 1 | Pending |
-| FOUND-05 | Phase 1 | Pending |
+| FOUND-04 | Phase 1 | Complete |
+| FOUND-05 | Phase 1 | Complete |
 | FOUND-06 | Phase 1 | Complete |
 | FOUND-07 | Phase 1 | Complete |
 | AUTH-01 | Phase 2 | Pending |

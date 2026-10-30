@@ -23,6 +23,12 @@ Someone who has never seen the codebase can clone the repo, follow the docs, and
 - ✓ Compose Multiplatform mobile app (Android + iOS) with OTP login/registration, rotating-refresh Ktor client, DataStore token storage — existing
 - ✓ Multi-stage backend Dockerfile (`api`, `scheduler` targets) and root `docker-compose.yml` (api, scheduler, redis) — existing
 - ✓ Test suites for every package that run against in-memory fakes, no live infra needed — existing
+- ✓ CI runs backend, dashboard and mobile checks on every PR and push to main, jobs independent, actions SHA-pinned, read-only token — Phase 1
+- ✓ Shared settings (datastore, Redis, Postgres config) consolidated into `core` instead of duplicated in api/scheduler — Phase 1
+- ✓ Settings load from the repo-root `.env` both under compose and when running services directly, with `OPENWELLNESS_ENV_FILE` override — Phase 1
+- ✓ Users-by-email and refresh sessions reach persistence through datastore-neutral ports; no pymongo/bson under `api/src`, domain or application — Phase 1
+- ✓ Error contract is honest: malformed id → 404, datastore outage → logged 500, duplicate key → 409 — Phase 1
+- ✓ ADRs 0001–0007 decide primary keys, timestamps, soft delete, token format, owner semantics, coach scope and the per-route authorization policy that Phase 2 enforces — Phase 1
 
 ### Active
 
@@ -37,7 +43,6 @@ Someone who has never seen the codebase can clone the repo, follow the docs, and
 - [ ] Postgres schema with migrations (versioned, reproducible on a fresh database)
 - [ ] Datastore backend selectable by config; Postgres is the default; Couchbase/Mongo adapters retained behind the flag for existing deployments
 - [ ] Refresh-session store and other auth persistence work on Postgres
-- [ ] Shared settings (datastore config) consolidated into `core` instead of duplicated in api/scheduler
 
 **Offline-first sync (PowerSync):**
 - [ ] PowerSync service self-hosted against the Postgres instance, authenticated with the API's JWTs
@@ -48,7 +53,6 @@ Someone who has never seen the codebase can clone the repo, follow the docs, and
 
 **Self-host kit:**
 - [ ] One-command local stack: `docker compose up` brings up api, scheduler (worker + beat), Redis, Postgres, PowerSync, dashboard, and a dev mail catcher
-- [ ] Settings load from a documented `.env` file both under compose and when running services directly
 - [ ] Complete `.env.example` covering every required variable (auth secrets, Redis, SMTP, Postgres, PowerSync, CORS) with secret-generation guidance
 - [ ] Bootstrap/seed command creates the first admin (and optionally a demo coach, study, participant) so a fresh instance is loggable-into
 - [ ] Dev mode where OTP emails are captured locally (no real SMTP needed)
@@ -102,6 +106,13 @@ Someone who has never seen the codebase can clone the repo, follow the docs, and
 | Enforce auth before writing production deployment docs | Unauthenticated routes expose health data | — Pending |
 | Local-first kit, then single-VM production path, then mobile pointed at it | Serves contributors and outside labs; one-command local stack is the foundation | — Pending |
 | Mobile scope = dev builds configurable to any server | Release/signing/distribution deferred | — Pending |
+| Primary keys are text UUIDv4; timestamps are epoch-seconds doubles with RFC 3339 on the wire (ADR 0001, 0002) | Portable across Postgres and the legacy stores; wire contract unchanged | ✓ Phase 1 |
+| Archive sets `deleted_at`, undelete is indefinite, purge is admin-only hard delete (ADR 0003) | Matches existing `:undelete`/`:purge` semantics; Postgres soft-delete can follow it | ✓ Phase 1 |
+| Access tokens move to EdDSA with `kid` and JWKS; separate `aud=powersync` token; HS256 retired in Phase 3 (ADR 0004) | PowerSync verifies against JWKS; one signing key per audience | ✓ Phase 1 (decided; implementation Phase 3) |
+| `owner` is the participant id; conversations and participant groups scope by membership (ADR 0005) | Mirrors the legacy Sync Gateway owner channel so sync predicates stay correct | ✓ Phase 1 |
+| Coach access is study-scoped via a `coach_studies` claim bounded to 930 s; 36-row per-resource policy table (ADR 0006, 0007) | Gives Phase 2 a complete, testable contract; duplicate-email 409 accepted as a pre-Phase-2 gap | ✓ Phase 1 |
+| Malformed ids are not-found, outages propagate as logged 500, duplicate keys are 409 | Clients can distinguish bad input from an unavailable datastore | ✓ Phase 1 |
+| Settings live once in `core`, read env then repo-root `.env` then defaults | One `.env` serves compose and direct runs; tests pin the env file to `/dev/null` | ✓ Phase 1 |
 
 ## Evolution
 
@@ -121,4 +132,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-29 after initialization*
+*Last updated: 2026-10-30 after Phase 1*
