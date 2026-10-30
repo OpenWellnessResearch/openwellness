@@ -22,3 +22,5 @@ Short MADR, about one page per file:
 | ADR | Title | Status |
 | --- | ----- | ------ |
 | [0001](0001-primary-key-format.md) | Primary key format | Accepted |
+| [0002](0002-timestamp-representation.md) | Timestamp representation | Accepted |
+| [0003](0003-soft-delete-archive-purge.md) | Soft delete, archive and purge | Accepted |
