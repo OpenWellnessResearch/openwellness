@@ -12,7 +12,7 @@ The work starts by settling the ground every later phase stands on: CI on every 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundations & Architecture Decisions** - CI on every PR, settings consolidated in `core` with `.env` loading, datastore-neutral ports, honest repository errors, and the ADRs later phases build on
+- [x] **Phase 1: Foundations & Architecture Decisions** - CI on every PR, settings consolidated in `core` with `.env` loading, datastore-neutral ports, honest repository errors, and the ADRs later phases build on (completed 2026-10-30)
 - [ ] **Phase 2: Route Authentication & Authorization** - Deny-by-default bearer auth on every `/v1` route, owner binding, admin/coach role gates, and audit fields taken only from the verified token
 - [ ] **Phase 3: Token Signing & Refresh Hardening** - Asymmetric `kid`-signed access tokens with a published JWKS, and a refresh grace window that survives concurrent clients
 - [ ] **Phase 4: Postgres Foundation & Auth on Postgres** - Alembic migrations with a one-shot `migrate`, a generic Postgres repository proven by a shared contract suite, and OTP login on Postgres
@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. OTP login, registration and refresh still work end to end after users-by-email lookup and refresh sessions move behind repository ports, and no domain entity imports `bson` or any other datastore type
   4. A request with a malformed resource id returns 404, and a datastore outage returns a 5xx with the error logged through `logging` instead of an empty result
   5. ADRs record the id format, timestamp representation, soft-delete semantics, token format, `owner` semantics and the per-resource authorization policy table
-**Plans**: 11/11 plans executed
+**Plans**: 11/11 plans complete
 
 Plans:
 **Wave 1**
@@ -214,7 +214,7 @@ Declared dependencies allow parallel streams. Phase 4 waits for Phase 3 so the P
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundations & Architecture Decisions | 11/11 | In Progress | - |
+| 1. Foundations & Architecture Decisions | 11/11 | Complete    | 2026-10-30 |
 | 2. Route Authentication & Authorization | 0/TBD | Not started | - |
 | 3. Token Signing & Refresh Hardening | 0/TBD | Not started | - |
 | 4. Postgres Foundation & Auth on Postgres | 0/TBD | Not started | - |
