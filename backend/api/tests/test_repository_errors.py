@@ -186,3 +186,17 @@ def test_save_to_existing_email_raises_duplicate_entity() -> None:
     with pytest.raises(DuplicateEntityException) as ei:
         repo.save(other)
     assert _DUP_EMAIL not in str(ei.value)
+
+
+def test_duplicate_email_post_returns_409_without_the_email(
+    client: TestClient, app: FastAPI
+) -> None:
+    db = _db()
+    db["users"].create_index("email", unique=True)
+    _use_repo(app, db)
+    body = {"email": _DUP_EMAIL, "isActive": True, "username": "a"}
+    assert client.post("/v1/users", json=body).status_code == 201
+    r = client.post("/v1/users", json=body)
+    assert r.status_code == 409, r.text
+    assert r.json()["error"]["status"] == "ALREADY_EXISTS"
+    assert _DUP_EMAIL not in r.text
