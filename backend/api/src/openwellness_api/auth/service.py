@@ -252,7 +252,7 @@ class AuthService:
             purpose=PURPOSE_LOGIN, email=norm, ip=ip
         )
 
-        users = self._user_repo.get_by_query({"email": norm})
+        users = self._user_repo.get_by_email(norm)
         user = self._eligible_login_user(norm, users)
 
         if user is not None:
@@ -415,7 +415,7 @@ class AuthService:
         user = self._user_repo.get_by_id(user_id)
 
         # 3) Email-ownership query (always).
-        owners = self._user_repo.get_by_query({"email": norm})
+        owners = self._user_repo.get_by_email(norm)
 
         # Now decide eligibility from the gathered results.
         if participant is None or not participant.user_id:
