@@ -81,15 +81,18 @@ class MongoBaseRepository(BaseCrudRepository, Generic[Entity, Persistence]):
     def save(self, entity: Entity) -> Entity:
         if not entity.id:
             return self.create(entity)
+        oid = object_id_or_none(entity.id)
+        if oid is None:
+            raise EntityNotFoundException(f"Entity {entity.id} not found")
         collection = self.repo[self._collection_name]
-        collection.update_one(
-            {"_id": ObjectId(entity.id)}, {"$set": self._to_doc(entity)}
-        )
+        collection.update_one({"_id": oid}, {"$set": self._to_doc(entity)})
         return entity
 
     def delete(self, entity_id: str) -> DeleteResult:
-        collection = self.repo[self._collection_name]
-        return collection.delete_one({"_id": ObjectId(entity_id)})
+        oid = object_id_or_none(entity_id)
+        if oid is None:
+            raise EntityNotFoundException(f"Entity {entity_id} not found")
+        return self.repo[self._collection_name].delete_one({"_id": oid})
 
     def archive(self, entity_id: str) -> None:
         """Insert a copy of the entity into the `{collection}_archive` collection.
@@ -109,12 +112,10 @@ class MongoBaseRepository(BaseCrudRepository, Generic[Entity, Persistence]):
 
         Inverse of :meth:`archive`: deletes archive-collection rows that
         share the original ``_id``. The original collection's document is
-        untouched. No-op when no archive row exists.
+        untouched. No-op when no archive row exists or the id is malformed;
+        datastore errors propagate.
         """
-        archive_collection_name = f"{self._collection_name}_archive"
-        try:
-            self.repo[archive_collection_name].delete_many(
-                {"_id": ObjectId(entity_id)}
-            )
-        except Exception:  # pragma: no cover - defensive
+        oid = object_id_or_none(entity_id)
+        if oid is None:
             return
+        self.repo[f"{self._collection_name}_archive"].delete_many({"_id": oid})
