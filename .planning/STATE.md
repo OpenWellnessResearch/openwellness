@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Foundations & Architecture Decisions
 status: executing
-stopped_at: Completed 01-07-PLAN.md
-last_updated: "2026-10-30T13:08:33.151Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-10-30T14:29:40.412Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 01 execution started
-state_head: 823fc90b46933eb23b08042ef32a5c5c1c298c13
+state_head: 7a9a2c3f729f62adf690e634b0c3f6c12b937cf0
 progress:
   total_phases: 12
   completed_phases: 0
   total_plans: 11
-  completed_plans: 4
+  completed_plans: 8
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-29)
 ## Current Position
 
 Phase: 01 (Foundations & Architecture Decisions) — EXECUTING
-Plan: 5 of 11
+Plan: 9 of 11
 Status: Ready to execute
 Last activity: 2026-10-30 — Phase 01 execution started
 
@@ -60,6 +60,10 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P02 | 20min | 2 tasks | 10 files |
 | Phase 01 P03 | 15min | 2 tasks | 5 files |
 | Phase 01 P07 | 8min | 3 tasks | 5 files |
+| Phase 01 P04 | 12 min | 2 tasks | 7 files |
+| Phase 01 P08 | 20min | 3 tasks | 2 files |
+| Phase 01 P10 | 5min | 2 tasks | 3 files |
+| Phase 01 P05 | 25min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -80,6 +84,10 @@ Recent decisions affecting current work:
 - [Phase 01]: Timestamps stored as double precision epoch seconds; wire stays RFC 3339 (ADR 0002)
 - [Phase 01]: Archive sets deleted_at; undelete indefinite; purge admin-only hard delete (ADR 0003)
 - [Phase 01]: Access tokens EdDSA Ed25519 with kid and JWKS; separate aud=powersync token; HS256 retired; no participant study claim (ADR 0004)
+- [Phase 01]: 01-04: Mongo participant adapter owns ObjectId coercion in _to_doc; empty/malformed studyId refused (404), never stored
+- [Phase 01]: ADR 0005: owner = participant id (legacy Sync Gateway owner channel); Phase 2 binds participant claim to {user} on users/{user}/... and sub on top-level users/{user}; exceptions: study_settings (study id), conversation and participant_group (membership-based, open point for Phase 6)
+- [Phase 01]: 01-10: compose environment overrides carry redis service hostnames; .env keeps localhost so one file serves both
+- [Phase 01]: 01-05: DuplicateEntityException lives in application, re-exported by adapters.exceptions (LimitExceededException placement); messages name the collection only
 
 ### Pending Todos
 
@@ -104,6 +112,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T13:08:33.132Z
-Stopped at: Completed 01-07-PLAN.md
+Last session: 2026-10-30T14:29:40.393Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None
