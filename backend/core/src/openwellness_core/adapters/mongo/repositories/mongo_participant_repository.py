@@ -50,20 +50,25 @@ class MongoParticipantRepository(
             return []
         return self.get_by_query({"studyId": oid})
 
+    # (alias, required) reference ids stored as ObjectId.
+    _REFS = (("assignedCoachId", False), ("userId", False), ("studyId", True))
+
+    def create(self, entity: SomeParticipant) -> SomeParticipant:
+        # Strict only on create: a new participant must name real documents.
+        # save/archive re-write stored values, which may be legacy non-ObjectId
+        # strings the caller never touched, so they pass those through.
+        doc = super()._to_doc(entity)
+        for alias, required in self._REFS:
+            value = doc.get(alias)
+            if (required or value) and object_id_or_none(value) is None:
+                # Field name only: never echo the offending value.
+                raise EntityNotFoundException(f"{alias} not found")
+        return super().create(entity)
+
     def _to_doc(self, entity: SomeParticipant) -> dict:
         doc = super()._to_doc(entity)
-        for alias, required in (
-            ("assignedCoachId", False),
-            ("userId", False),
-            ("studyId", True),
-        ):
+        for alias, _ in self._REFS:
             value = doc.get(alias)
-            if not required and not value:
-                doc[alias] = None
-                continue
-            # A malformed (or, for studyId, empty) reference names no document.
-            oid = object_id_or_none(value)
-            if oid is None:
-                raise EntityNotFoundException(f"{alias} {value} not found")
-            doc[alias] = oid
+            oid = object_id_or_none(value) if value else None
+            doc[alias] = oid if oid is not None else (value or None)
         return doc
