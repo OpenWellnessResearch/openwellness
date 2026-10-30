@@ -32,14 +32,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Callable, Protocol
 
-from pymongo.errors import DuplicateKeyError
-
 from openwellness_api.auth import errors
 from openwellness_api.auth.email_sender import EmailSender
 from openwellness_api.auth.otp_store import InvalidOtp
 from openwellness_api.auth.session_store import RefreshInvalid, RefreshReuse
 from openwellness_api.auth.token_service import InvalidAccessToken
 from openwellness_api.config import AuthSettings
+from openwellness_core.application.exceptions import DuplicateEntityException
 
 logger = logging.getLogger(__name__)
 
@@ -252,7 +251,7 @@ class AuthService:
             purpose=PURPOSE_LOGIN, email=norm, ip=ip
         )
 
-        users = self._user_repo.get_by_query({"email": norm})
+        users = self._user_repo.get_by_email(norm)
         user = self._eligible_login_user(norm, users)
 
         if user is not None:
@@ -415,7 +414,7 @@ class AuthService:
         user = self._user_repo.get_by_id(user_id)
 
         # 3) Email-ownership query (always).
-        owners = self._user_repo.get_by_query({"email": norm})
+        owners = self._user_repo.get_by_email(norm)
 
         # Now decide eligibility from the gathered results.
         if participant is None or not participant.user_id:
@@ -474,7 +473,7 @@ class AuthService:
         user.is_active = True
         try:
             self._user_repo.save(user)
-        except DuplicateKeyError:
+        except DuplicateEntityException:
             # The user collection has a UNIQUE email index; if a DIFFERENT
             # (unverified) user already holds this email, save collides. Map it
             # to the uniform 400 so the response shape stays indistinguishable

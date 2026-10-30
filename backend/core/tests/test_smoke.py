@@ -5,6 +5,8 @@ survives `from_domain → model_dump → model_validate → to_domain` with the
 core domain fields intact.
 """
 
+from typing import TypeVar
+
 from bson import ObjectId
 from openwellness_core.adapters.couchbase.model import (
     CBBaseOwnerEntity,
@@ -24,8 +26,10 @@ from openwellness_core.domain.models.study import Study
 from openwellness_core.domain.models.user import User
 from openwellness_core.domain.models.weight import Weight
 
+T = TypeVar("T")
 
-def _cb_roundtrip(persistence_cls, domain_cls, domain_instance):
+
+def _cb_roundtrip(persistence_cls, domain_cls: type[T], domain_instance: T) -> T:
     """Helper: domain → CB persistence → wire dict → CB persistence → domain."""
     persistence = persistence_cls.from_domain(domain_instance)
     wire = persistence.model_dump(by_alias=True)
@@ -33,7 +37,7 @@ def _cb_roundtrip(persistence_cls, domain_cls, domain_instance):
     return rebuilt.to_domain(domain_cls)
 
 
-def _mongo_roundtrip(persistence_cls, domain_cls, domain_instance):
+def _mongo_roundtrip(persistence_cls, domain_cls: type[T], domain_instance: T) -> T:
     """Helper: domain → Mongo persistence → wire dict → Mongo persistence → domain."""
     persistence = persistence_cls.from_domain(domain_instance)
     wire = persistence.model_dump(by_alias=True)

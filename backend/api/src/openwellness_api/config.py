@@ -1,68 +1,33 @@
 """Application configuration.
 
-Implements ``openwellness_core.infrastructure.config.AppConfigInterface``
-so it can be passed straight to the core drivers.
+Datastore and Redis settings (and ``AppConfig``) live once in
+``openwellness_core.infrastructure.config.settings`` and are re-exported here
+so existing imports keep working. This module adds the API-only settings; all
+of them read the one repo-root ``.env`` through ``OpenWellnessSettings``.
 """
 
 from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 
-from openwellness_core.infrastructure.config.app_config import AppConfigInterface
+from openwellness_core.infrastructure.config.settings import (
+    AppConfig,
+    OpenWellnessSettings,
+    RedisSettings,
+)
 
-
-class CouchbaseSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="COUCHBASE_", extra="ignore")
-
-    url: str = "couchbase://localhost"
-    username: str = "Administrator"
-    password: str = "password"
-    bucket_name: str = "openwellness"
-
-
-class SyncGatewaySettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="SYNC_GATEWAY_", extra="ignore")
-
-    url: str = "http://localhost:4984/openwellness"
-
-    def get_url(self) -> str:
-        return self.url
+__all__ = [
+    "APISettings",
+    "AppConfig",
+    "AuthSettings",
+    "RedisSettings",
+    "SmtpSettings",
+]
 
 
-class MongoSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MONGO_", extra="ignore")
-
-    url: str = "mongodb://localhost:27017"
-    db: str = "openwellness"
-
-    def get_url(self) -> str:
-        return self.url
-
-
-class AppConfig(AppConfigInterface):
-    """Concrete config — composes core's protocol-typed sub-settings."""
-
-    def __init__(self) -> None:
-        self._couchbase = CouchbaseSettings()
-        self._sync_gateway = SyncGatewaySettings()
-        self._mongo = MongoSettings()
-
-    @property
-    def couchbase(self) -> CouchbaseSettings:
-        return self._couchbase
-
-    @property
-    def sync_gateway(self) -> SyncGatewaySettings:
-        return self._sync_gateway
-
-    @property
-    def mongo(self) -> MongoSettings:
-        return self._mongo
-
-
-class APISettings(BaseSettings):
+class APISettings(OpenWellnessSettings):
     """API-only knobs (not part of the core config interface)."""
 
-    model_config = SettingsConfigDict(env_prefix="API_", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="API_")
 
     title: str = "OpenWellness API"
     default_page_size: int = Field(default=50, ge=1, le=1000)
@@ -79,18 +44,10 @@ class APISettings(BaseSettings):
         return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]
 
 
-class RedisSettings(BaseSettings):
-    """Redis connection settings (used for OTP / rate-limit caching)."""
-
-    model_config = SettingsConfigDict(env_prefix="REDIS_", extra="ignore")
-
-    url: str = "redis://localhost:6379/0"
-
-
-class SmtpSettings(BaseSettings):
+class SmtpSettings(OpenWellnessSettings):
     """Outbound SMTP settings for email delivery."""
 
-    model_config = SettingsConfigDict(env_prefix="SMTP_", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="SMTP_")
 
     host: str = ""
     port: int = Field(default=587, ge=1, le=65535)
@@ -100,10 +57,10 @@ class SmtpSettings(BaseSettings):
     from_address: str = ""
 
 
-class AuthSettings(BaseSettings):
+class AuthSettings(OpenWellnessSettings):
     """Authentication knobs: JWT, OTP, rate limits, and misc behaviour flags."""
 
-    model_config = SettingsConfigDict(env_prefix="API_AUTH_", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="API_AUTH_")
 
     # JWT
     jwt_secret: str = ""

@@ -22,6 +22,9 @@ import fakeredis
 import mongomock
 import pytest
 
+from openwellness_core.adapters.mongo.repositories.mongo_refresh_session_repository import (
+    MongoRefreshSessionRepository,
+)
 from openwellness_core.application.exceptions import LimitExceededException
 from openwellness_core.domain.models.user import User
 
@@ -55,7 +58,7 @@ UNVERIFIED_PID = "PID-200"
 # Fakes: repos + scheduler
 # --------------------------------------------------------------------------- #
 class FakeUserRepo:
-    """Minimal in-memory user repo: get_by_id / get_by_query({email}) / save."""
+    """Minimal in-memory user repo: get_by_id / get_by_email / save."""
 
     def __init__(self) -> None:
         self._by_id: dict[str, User] = {}
@@ -66,8 +69,7 @@ class FakeUserRepo:
     def get_by_id(self, entity_id: str) -> User | None:
         return self._by_id.get(entity_id)
 
-    def get_by_query(self, query: dict) -> list[User]:
-        email = query.get("email")
+    def get_by_email(self, email: str) -> list[User]:
         return [u for u in self._by_id.values() if u.email == email]
 
     def save(self, user: User) -> User:
@@ -174,10 +176,9 @@ class _Ctx:
         self.collection: Any = mongomock.MongoClient()["testdb"][
             "auth_refresh_sessions"
         ]
-        self.session_store = RefreshSessionStore(
-            collection=self.collection, clock=self.clock
-        )
-        self.session_store.ensure_indexes()
+        adapter = MongoRefreshSessionRepository(collection=self.collection)
+        adapter.ensure_indexes()
+        self.session_store = RefreshSessionStore(repo=adapter, clock=self.clock)
         self.email = FakeEmailSender()
         self.user_repo = FakeUserRepo()
         self.participant_repo = FakeParticipantRepo()
@@ -618,13 +619,13 @@ def test_registration_email_collision_is_uniform_400(ctx: _Ctx) -> None:
 
     The real user collection has a unique email index; if a DIFFERENT
     unverified user already holds the normalized email, ``save`` raises
-    ``pymongo.errors.DuplicateKeyError``. That must be caught and re-raised as
+    ``DuplicateEntityException``. That must be caught and re-raised as
     ``errors.invalid_code()`` (status 400, generic message) rather than
     escaping as an unhandled 500 (which would also leak a distinguishable
     response shape).
     """
     from fastapi import HTTPException
-    from pymongo.errors import DuplicateKeyError
+    from openwellness_core.application.exceptions import DuplicateEntityException
 
     # Drive a real, valid registration verify (real OTP from the email).
     ctx.service.send_registration_code(
@@ -637,7 +638,7 @@ def test_registration_email_collision_is_uniform_400(ctx: _Ctx) -> None:
 
     # The save() now collides on the unique email index.
     def _raise_dup(_user: User) -> User:
-        raise DuplicateKeyError("dup")
+        raise DuplicateEntityException("dup")
 
     ctx.user_repo.save = _raise_dup  # type: ignore[method-assign]
 
@@ -655,7 +656,7 @@ def test_registration_email_collision_is_uniform_400(ctx: _Ctx) -> None:
 # Fix I-1 — registration send issues a CONSTANT query shape (timing oracle)
 # --------------------------------------------------------------------------- #
 class _CountingUserRepo:
-    """Wrap a real user repo, recording every get_by_id/get_by_query call."""
+    """Wrap a real user repo, recording every get_by_id/get_by_email call."""
 
     def __init__(self, inner: FakeUserRepo) -> None:
         self._inner = inner
@@ -665,9 +666,9 @@ class _CountingUserRepo:
         self.calls.append(("get_by_id", entity_id))
         return self._inner.get_by_id(entity_id)
 
-    def get_by_query(self, query: dict) -> list[User]:
-        self.calls.append(("get_by_query", query))
-        return self._inner.get_by_query(query)
+    def get_by_email(self, email: str) -> list[User]:
+        self.calls.append(("get_by_email", email))
+        return self._inner.get_by_email(email)
 
     def save(self, user: User) -> User:
         return self._inner.save(user)
@@ -716,7 +717,7 @@ def test_registration_send_query_shape_is_constant() -> None:
     already-verified user) is a measurable timing oracle that leaks whether a
     participant id exists, undercutting the uniform-200 guarantee. All three
     paths must issue the identical shape: participant.get_by_id,
-    user.get_by_id, user.get_by_query.
+    user.get_by_id, user.get_by_email.
 
     Each case uses its OWN ``_Ctx`` (fresh redis) so the shared send-rate-limit
     counters never interfere with the per-case query-shape measurement.
@@ -756,5 +757,5 @@ def test_registration_send_query_shape_is_constant() -> None:
 
     # Identical shape across all three eligibility outcomes.
     assert shape_a == shape_b == shape_c
-    # Concretely: 1 participant lookup + (1 user get_by_id + 1 user get_by_query).
-    assert shape_a == (("get_by_id",), ("get_by_id", "get_by_query"))
+    # Concretely: 1 participant lookup + (1 user get_by_id + 1 user get_by_email).
+    assert shape_a == (("get_by_id",), ("get_by_id", "get_by_email"))

@@ -15,10 +15,20 @@ import types
 from datetime import datetime, timezone
 from typing import Any
 
+import mongomock
 import pytest
 from dependency_injector import providers
+from fastapi.testclient import TestClient
+from unittest.mock import MagicMock
 
+from openwellness_core.adapters.mongo.repositories.mongo_refresh_session_repository import (
+    MongoRefreshSessionRepository,
+)
+
+from openwellness_api import main
 from openwellness_api.auth.service import AuthService
+from openwellness_api.config import AppConfig, AuthSettings
+from openwellness_api.container import ApplicationContainer
 from openwellness_api.deps.auth_container import (
     AuthContainer,
     auth_dep,
@@ -205,3 +215,66 @@ def test_redis_client_passes_decode_responses(monkeypatch: pytest.MonkeyPatch) -
     assert client is not None
     assert captured["kwargs"].get("decode_responses") is True
     assert captured["url"] == container.redis_settings().url
+
+
+# --------------------------------------------------------------------------- #
+# Refresh-session repository wiring (composition root)
+# --------------------------------------------------------------------------- #
+def _app_container() -> ApplicationContainer:
+    container = ApplicationContainer()
+    container.app_config.override(providers.Object(AppConfig()))
+    return container
+
+
+def test_repository_container_exposes_refresh_session_singleton() -> None:
+    repos = _app_container().repositories
+    first = repos.refresh_session()
+    assert repos.refresh_session() is first
+    assert isinstance(first, MongoRefreshSessionRepository)
+    assert first._collection.name == "auth_refresh_sessions"
+
+
+def test_refresh_session_collection_follows_override() -> None:
+    repos = _app_container().repositories
+    repos.refresh_session_collection.override(providers.Object("custom_sessions"))
+    assert repos.refresh_session()._collection.name == "custom_sessions"
+
+
+def test_auth_settings_refresh_collection_default_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("API_AUTH_REFRESH_COLLECTION", raising=False)
+    assert AuthSettings(_env_file=None).refresh_collection == "auth_refresh_sessions"
+    monkeypatch.setenv("API_AUTH_REFRESH_COLLECTION", "custom_sessions")
+    assert AuthSettings(_env_file=None).refresh_collection == "custom_sessions"
+
+
+def test_lifespan_wires_refresh_session_repository(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Enter the real lifespan: the conftest ``app`` fixture skips it."""
+    secret = "x" * 40
+    monkeypatch.setenv("API_AUTH_JWT_SECRET", secret)
+    monkeypatch.setenv("API_AUTH_CODE_PEPPER", secret)
+    monkeypatch.setenv("API_AUTH_REFRESH_COLLECTION", "custom_sessions")
+    # Refused at once, so the best-effort startup ping only warns.
+    monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/0")
+
+    db = mongomock.MongoClient()["boot"]
+
+    def _factory() -> ApplicationContainer:
+        container = ApplicationContainer()
+        # No Couchbase connection; initialize/cleanup become no-ops.
+        container.repositories.entity_repository.override(providers.Object(MagicMock()))
+        container.repositories.collection_repository.override(providers.Object(db))
+        return container
+
+    monkeypatch.setattr(main, "ApplicationContainer", _factory)
+
+    app = main.create_app()
+    with TestClient(app) as client:
+        assert client.get("/healthz").status_code == 200
+        repo = app.state.container.repositories.refresh_session()
+        assert app.state.auth_container.session_store()._repo is repo
+        assert repo._collection.name == "custom_sessions"
+        assert "uq_token_hash" in db["custom_sessions"].index_information()

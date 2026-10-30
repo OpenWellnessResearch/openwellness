@@ -1,20 +1,28 @@
 """Mongo base repository for all entities."""
 
-import traceback
 from typing import Any, Generic, Type, TypeVar
 
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 
 from ....application.repositories.base_crud_repository import BaseCrudRepository
 from ....domain.exceptions.domain_exception import EntityNotFoundException
 from ....domain.models.base_entity import BaseEntity
-from ...exceptions import AdapterException
+from ...exceptions import AdapterException, DuplicateEntityException
 from ...interfaces.collection_repository import CollectionRepository
 from ...interfaces.results.delete_result import DeleteResult
 from ..model.mongo_base_entity import MongoBaseEntity
 
 Entity = TypeVar("Entity", bound=BaseEntity)
 Persistence = TypeVar("Persistence", bound=MongoBaseEntity)
+
+
+def object_id_or_none(value: Any) -> ObjectId | None:
+    """Parse ``value`` as an ObjectId, or None when it cannot be one.
+
+    A value Mongo cannot parse names no document, so callers treat it as not found.
+    """
+    return ObjectId(value) if ObjectId.is_valid(value) else None
 
 
 class MongoBaseRepository(BaseCrudRepository, Generic[Entity, Persistence]):
@@ -40,9 +48,16 @@ class MongoBaseRepository(BaseCrudRepository, Generic[Entity, Persistence]):
     def _from_doc(self, doc: dict) -> Entity:
         return self.persistence_type.model_validate(doc).to_domain(self.entity_type)
 
+    def _duplicate(self, exc: DuplicateKeyError) -> DuplicateEntityException:
+        # Collection only: the duplicated key value can be an email.
+        return DuplicateEntityException(f"{self._collection_name}: duplicate key")
+
     def create(self, entity: Entity) -> Entity:
         collection = self.repo[self._collection_name]
-        result = collection.insert_one(self._to_doc(entity))
+        try:
+            result = collection.insert_one(self._to_doc(entity))
+        except DuplicateKeyError as exc:
+            raise self._duplicate(exc) from exc
         entity.id = str(result.inserted_id)
         fetched = collection.find_one({"_id": result.inserted_id})
         if fetched is None:
@@ -56,17 +71,11 @@ class MongoBaseRepository(BaseCrudRepository, Generic[Entity, Persistence]):
         return collection.find(query)
 
     def get_by_id(self, entity_id: str) -> Entity | None:
-        try:
-            collection = self.repo[self._collection_name]
-            result = collection.find_one({"_id": ObjectId(entity_id)})
-            return None if not result else self._from_doc(result)
-        except AttributeError as e:
-            print(f"Attribute error: {e}")
+        oid = object_id_or_none(entity_id)
+        if oid is None:
             return None
-        except Exception as e:
-            print(traceback.format_exc())
-            print(f"An error occurred: {e}")
-            return None
+        result = self.repo[self._collection_name].find_one({"_id": oid})
+        return None if not result else self._from_doc(result)
 
     def get_by_query(self, query: dict) -> list[Entity]:
         return [self._from_doc(item) for item in self.execute_query(query)]
@@ -80,15 +89,21 @@ class MongoBaseRepository(BaseCrudRepository, Generic[Entity, Persistence]):
     def save(self, entity: Entity) -> Entity:
         if not entity.id:
             return self.create(entity)
+        oid = object_id_or_none(entity.id)
+        if oid is None:
+            raise EntityNotFoundException(f"Entity {entity.id} not found")
         collection = self.repo[self._collection_name]
-        collection.update_one(
-            {"_id": ObjectId(entity.id)}, {"$set": self._to_doc(entity)}
-        )
+        try:
+            collection.update_one({"_id": oid}, {"$set": self._to_doc(entity)})
+        except DuplicateKeyError as exc:
+            raise self._duplicate(exc) from exc
         return entity
 
     def delete(self, entity_id: str) -> DeleteResult:
-        collection = self.repo[self._collection_name]
-        return collection.delete_one({"_id": ObjectId(entity_id)})
+        oid = object_id_or_none(entity_id)
+        if oid is None:
+            raise EntityNotFoundException(f"Entity {entity_id} not found")
+        return self.repo[self._collection_name].delete_one({"_id": oid})
 
     def archive(self, entity_id: str) -> None:
         """Insert a copy of the entity into the `{collection}_archive` collection.
@@ -108,12 +123,10 @@ class MongoBaseRepository(BaseCrudRepository, Generic[Entity, Persistence]):
 
         Inverse of :meth:`archive`: deletes archive-collection rows that
         share the original ``_id``. The original collection's document is
-        untouched. No-op when no archive row exists.
+        untouched. No-op when no archive row exists or the id is malformed;
+        datastore errors propagate.
         """
-        archive_collection_name = f"{self._collection_name}_archive"
-        try:
-            self.repo[archive_collection_name].delete_many(
-                {"_id": ObjectId(entity_id)}
-            )
-        except Exception:  # pragma: no cover - defensive
+        oid = object_id_or_none(entity_id)
+        if oid is None:
             return
+        self.repo[f"{self._collection_name}_archive"].delete_many({"_id": oid})

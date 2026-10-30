@@ -11,6 +11,8 @@ import os
 from typing import Any
 from uuid import uuid4
 
+# Tests must never read a developer's real `.env` (it may point at live datastores).
+os.environ["OPENWELLNESS_ENV_FILE"] = os.devnull
 # Ensure config loads with safe defaults before the app imports.
 os.environ.setdefault("COUCHBASE_URL", "couchbase://stub")
 os.environ.setdefault("MONGO_URL", "mongodb://stub")
@@ -104,22 +106,10 @@ class InMemoryOwnerRepo(InMemoryBaseRepo):
 
 
 class FakeUserRepo(InMemoryBaseRepo, UserRepository):
-    def get_by_query(self, query: Any) -> list[Any]:
-        """Honor an ``{"email": ...}`` filter (the auth service relies on it).
-
-        The base in-memory ``get_by_query`` returns ALL users, which would make
-        the login-eligibility lookup (``get_by_query({"email": norm})`` must
-        return only the matching user) wrong. An empty/falsy query still returns
-        everything, preserving the existing CRUD-test behavior.
-        """
-        if isinstance(query, dict) and "email" in query:
-            wanted = query["email"]
-            return [
-                u
-                for u in self.store.values()
-                if getattr(u, "email", None) == wanted
-            ]
-        return list(self.store.values())
+    def get_by_email(self, email: str) -> list[Any]:
+        return [
+            u for u in self.store.values() if getattr(u, "email", None) == email
+        ]
 
 
 class FakeStudyRepo(InMemoryBaseRepo, StudyRepository):
@@ -287,6 +277,10 @@ def app(fakes: dict[type, Any], fake_email_sender):
     import mongomock
 
     from openwellness_api.auth.otp_store import RedisOtpStore
+    from openwellness_core.adapters.mongo.repositories.mongo_refresh_session_repository import (
+        MongoRefreshSessionRepository,
+    )
+
     from openwellness_api.auth.session_store import RefreshSessionStore
     from openwellness_api.auth.token_service import JwtTokenService
     from openwellness_api.config import AuthSettings
@@ -329,11 +323,11 @@ def app(fakes: dict[type, Any], fake_email_sender):
             )
         )
     )
-    session_store = RefreshSessionStore(
-        collection=mongomock.MongoClient()["testdb"]["auth_refresh_sessions"],
-        clock=default_clock,
+    refresh_adapter = MongoRefreshSessionRepository(
+        collection=mongomock.MongoClient()["testdb"]["auth_refresh_sessions"]
     )
-    session_store.ensure_indexes()
+    refresh_adapter.ensure_indexes()
+    session_store = RefreshSessionStore(repo=refresh_adapter, clock=default_clock)
     auth_container.session_store.override(providers.Object(session_store))
     auth_container.email_sender.override(providers.Object(fake_email_sender))
     instance.state.auth_container = auth_container
@@ -369,7 +363,7 @@ def seed_accounts(fakes: dict[type, Any]) -> dict[str, Any]:
     )
     participant_a = Participant(
         id=pid_a,
-        user_id=login_user_id,  # type: ignore[arg-type]  # fake repos key by str id; runtime user_id is a stringified ObjectId
+        user_id=login_user_id,
         is_active=True,
         participant_number="A-1",
     )
@@ -386,7 +380,7 @@ def seed_accounts(fakes: dict[type, Any]) -> dict[str, Any]:
     )
     participant_b = Participant(
         id=pid_b,
-        user_id=reg_user_id,  # type: ignore[arg-type]  # fake repos key by str id; runtime user_id is a stringified ObjectId
+        user_id=reg_user_id,
         is_active=False,
         participant_number="B-1",
     )

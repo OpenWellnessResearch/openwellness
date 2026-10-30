@@ -10,8 +10,8 @@ Three responsibilities:
    ``createTime``, ``updateTime``. Every response model inherits from
    this; ``name`` is computed by ``serialize_one`` and injected into the
    serialization dict before validation.
-3. ``ArrowField`` / ``ObjectIdField`` — type adapters reused by schemas
-   whose domain field types don't round-trip through Pydantic by default.
+3. ``ArrowField`` — type adapter reused by schemas whose domain field
+   types don't round-trip through Pydantic by default.
 """
 
 from __future__ import annotations
@@ -22,11 +22,6 @@ import arrow
 from arrow import Arrow
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, PlainSerializer
 from pydantic.alias_generators import to_camel
-
-try:
-    from bson import ObjectId  # type: ignore[import-untyped]
-except Exception:  # pragma: no cover - bson provided transitively
-    ObjectId = None  # type: ignore[misc, assignment]
 
 
 SCHEMA_CONFIG = ConfigDict(
@@ -53,25 +48,6 @@ ArrowField = Annotated[
     Arrow,
     BeforeValidator(_to_arrow),
     PlainSerializer(_from_arrow, return_type=str, when_used="json"),
-]
-
-
-def _to_object_id(v: Any) -> Any:
-    if ObjectId is None or v is None:
-        return v
-    if isinstance(v, ObjectId):
-        return v
-    return ObjectId(str(v))
-
-
-def _from_object_id(v: Any) -> Any:
-    return str(v) if v is not None else None
-
-
-ObjectIdField = Annotated[
-    Any,
-    BeforeValidator(_to_object_id),
-    PlainSerializer(_from_object_id, return_type=str, when_used="json"),
 ]
 
 

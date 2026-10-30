@@ -1,0 +1,105 @@
+name: CI
+
+# Unprivileged pull_request trigger only (no secrets, safe for fork PRs).
+# No paths filters: a docs-only PR must still report every check.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (pytest, pyright, N1QL lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - id: sync
+        name: Install dependencies
+        run: uv sync --frozen --extra dev
+      # Each check runs even if a sibling failed, so one red suite never hides another.
+      - name: core tests
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        working-directory: backend/core
+        run: uv run --frozen pytest
+      - name: api tests
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        working-directory: backend/api
+        run: uv run --frozen pytest
+      - name: scheduler tests
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        working-directory: backend/scheduler
+        run: uv run --frozen pytest
+      # pyright exits non-zero on errors only; warnings stay downgraded (D-16).
+      - name: pyright
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        working-directory: backend
+        run: uv run --frozen pyright
+      - name: N1QL f-string lint
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        run: uv run --frozen python core/scripts/check_no_fstring_n1ql.py
+
+  dashboard:
+    name: Dashboard (lint, typecheck, test, format)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend/dashboard
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Node 22, not latest: Node 25+ ships a built-in localStorage that shadows
+      # jsdom's and breaks the Vitest suites; 22 is inside the engines range.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/dashboard/package-lock.json
+      - id: install
+        name: Install dependencies
+        run: npm ci
+      - name: lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run lint
+      - name: typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run typecheck
+      - name: test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm test
+      - name: format check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run format:check
+
+  mobile:
+    name: Mobile (JVM host tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend/mobile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Matches the Gradle daemon JVM criteria (Amazon Corretto 21).
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: corretto
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      - name: Host tests
+        run: ./gradlew testAndroidHostTest --stacktrace

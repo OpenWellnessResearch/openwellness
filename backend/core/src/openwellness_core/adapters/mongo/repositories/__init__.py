@@ -6,6 +6,7 @@ from .mongo_base_repository import MongoBaseRepository
 from .mongo_device_repository import MongoDeviceRepository
 from .mongo_fitbit_repository import MongoFitbitRepository
 from .mongo_participant_repository import MongoParticipantRepository
+from .mongo_refresh_session_repository import MongoRefreshSessionRepository
 from .mongo_study_message_repository import MongoStudyMessageRepository
 from .mongo_study_repository import MongoStudyRepository
 from .mongo_user_repository import MongoUserRepository

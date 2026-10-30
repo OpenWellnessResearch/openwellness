@@ -9,7 +9,10 @@ from pydantic import ValidationError
 from pydantic_core import to_jsonable_python
 from redis.exceptions import RedisError
 
-from openwellness_core.application.exceptions import LimitExceededException
+from openwellness_core.application.exceptions import (
+    DuplicateEntityException,
+    LimitExceededException,
+)
 from openwellness_core.domain.exceptions.domain_exception import (
     DomainException,
     EntityNotFoundException,
@@ -17,6 +20,7 @@ from openwellness_core.domain.exceptions.domain_exception import (
     UnexpectedCount,
 )
 
+from ..config import APISettings
 from .responses import build_error
 
 logger = logging.getLogger(__name__)
@@ -79,6 +83,23 @@ def register_exception_handlers(app: FastAPI) -> None:
                 str(exc),
                 details=[{"retry_after_secs": retry_after}],
             ),
+        )
+
+    @app.exception_handler(DuplicateEntityException)
+    async def _duplicate_entity(
+        _: Request, exc: DuplicateEntityException
+    ) -> JSONResponse:
+        """409: a write violated a uniqueness constraint.
+
+        The message stays generic because the duplicated value can be an email.
+        On POST /v1/users this reveals that an email is registered; ADR 0007
+        grants that create to admin only once Phase 2 enforces route auth. The
+        /v1/auth:* routes never reach this handler: registration maps the
+        exception to the uniform invalid_code 400.
+        """
+        return JSONResponse(
+            status_code=409,
+            content=build_error(409, "ALREADY_EXISTS", "The resource already exists."),
         )
 
     @app.exception_handler(RedisError)
@@ -144,4 +165,40 @@ def register_exception_handlers(app: FastAPI) -> None:
             content=build_error(
                 exc.status_code, "ERROR", str(exc.detail)
             ),
+        )
+
+    @app.exception_handler(Exception)
+    async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
+        """Catch-all: log and return a generic 500.
+
+        Adapter and driver outages, including datastore connectivity, must
+        surface as a logged 5xx instead of being masked as 404 or an empty
+        result. The message is withheld from the client because driver errors
+        can carry host names and query fragments. Never log request bodies or
+        headers here.
+        """
+        # No exc_info: Starlette re-raises after this handler responds, so
+        # uvicorn already logs the traceback; a second one would be noise.
+        logger.error(
+            "Unhandled %s on %s %s",
+            type(exc).__name__,
+            request.method,
+            request.url.path,
+        )
+        # ServerErrorMiddleware runs outside CORSMiddleware, so a browser would
+        # see this 500 as an opaque network failure unless we add the headers.
+        origin = request.headers.get("origin")
+        headers = (
+            {
+                "access-control-allow-origin": origin,
+                "access-control-allow-credentials": "true",
+                "vary": "Origin",
+            }
+            if origin and origin in APISettings().cors_origins_list
+            else {}
+        )
+        return JSONResponse(
+            status_code=500,
+            headers=headers,
+            content=build_error(500, "INTERNAL", "Internal error."),
         )
