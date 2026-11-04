@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from ..common.pagination import list_response_model
 from ._base import SCHEMA_CONFIG, ResourceBase
@@ -14,7 +14,9 @@ from ._base import SCHEMA_CONFIG, ResourceBase
 class AdminUserBody(BaseModel):
     """Nested user payload accepted in create/update bodies."""
 
-    model_config = SCHEMA_CONFIG
+    # from_attributes: responses carry the stored AdminUser dataclass, which
+    # _entity_to_dict leaves nested, so validation must read it by attribute.
+    model_config = SCHEMA_CONFIG | ConfigDict(from_attributes=True)
 
     id: str
     name: str = ""
