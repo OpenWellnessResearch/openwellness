@@ -1,5 +1,7 @@
 """Mongo repository for Study."""
 
+import re
+
 from ....application.repositories.study_repository import StudyRepository
 from ....domain.models.study import Study
 from ...interfaces.collection_repository import CollectionRepository
@@ -19,7 +21,7 @@ class MongoStudyRepository(StudyRepository, MongoBaseRepository[Study, MongoStud
         self.entity_type = Study
 
     def get_by_name(self, name: str) -> Study | None:
-        q = {"name": {"$regex": f"^{name}$", "$options": "i"}}
+        q = {"name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}}
         results = self.get_by_query(q)
         if len(results) == 0:
             return None

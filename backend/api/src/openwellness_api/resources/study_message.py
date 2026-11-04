@@ -11,6 +11,7 @@ from openwellness_core.domain.models.study_message import (
     StudyMessage as StudyMessageEntity,
 )
 
+from ..authz.engine import Access, authorize
 from ..common.handlers import (
     apply_patch,
     check_parent,
@@ -21,7 +22,6 @@ from ..common.handlers import (
 from ..common.pagination import PageParams, page_params, paginate
 from ..common.resource_name import format_name
 from ..deps.container import container_dep
-from ..deps.principal import Principal, get_principal
 from ..schemas.study_message import (
     StudyMessage,
     StudyMessageCreate,
@@ -43,23 +43,25 @@ def build_router() -> APIRouter:
     )
     repo_dep = container_dep("study_message")
 
-    def _fetch(study: str, id_: str, repo: Any) -> Any:
+    def _fetch(study: str, id_: str, repo: Any, access: Access) -> Any:
         entity = repo.get_by_id(id_)
         if entity is None:
             not_found(_COLLECTION, id_, parent=_parent_name(study))
-        return check_parent(
-            entity,
-            parent_id=study,
-            parent_field="study_id",
-            collection=_COLLECTION,
-            parent=_PARENT,
+        return access.check_record(
+            check_parent(
+                entity,
+                parent_id=study,
+                parent_field="study_id",
+                collection=_COLLECTION,
+                parent=_PARENT,
+            )
         )
 
     @router.post("", status_code=201, response_model=StudyMessage)
     def create(
         study: str,
         body: StudyMessageCreate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("study_message", "create")),
         repo: StudyMessageRepository = Depends(repo_dep),
     ) -> Any:
         payload = body.model_dump(exclude_unset=False)
@@ -75,10 +77,11 @@ def build_router() -> APIRouter:
     def get(
         study: str,
         study_message: str,
+        access: Access = Depends(authorize("study_message", "get")),
         repo: StudyMessageRepository = Depends(repo_dep),
     ) -> Any:
         return serialize_one(
-            _fetch(study, study_message, repo),
+            _fetch(study, study_message, repo, access),
             StudyMessage,
             collection=_COLLECTION,
             parent=_parent_name(study),
@@ -89,11 +92,11 @@ def build_router() -> APIRouter:
         study: str,
         study_message: str,
         body: StudyMessageUpdate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("study_message", "patch")),
         repo: StudyMessageRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(study, study_message, repo)
-        apply_patch(entity, body, principal=principal)
+        entity = _fetch(study, study_message, repo, access)
+        apply_patch(entity, body, principal=access.principal)
         return serialize_one(
             repo.save(entity),
             StudyMessage,
@@ -105,9 +108,10 @@ def build_router() -> APIRouter:
     def delete(
         study: str,
         study_message: str,
+        access: Access = Depends(authorize("study_message", "delete")),
         repo: StudyMessageRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(study, study_message, repo)
+        _fetch(study, study_message, repo, access)
         repo.archive(study_message)
         return None
 
@@ -115,9 +119,10 @@ def build_router() -> APIRouter:
     def undelete(
         study: str,
         study_message: str,
+        access: Access = Depends(authorize("study_message", "undelete")),
         repo: StudyMessageRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(study, study_message, repo)
+        entity = _fetch(study, study_message, repo, access)
         repo.unarchive(study_message)
         return serialize_one(
             entity,
@@ -130,9 +135,10 @@ def build_router() -> APIRouter:
     def purge(
         study: str,
         study_message: str,
+        access: Access = Depends(authorize("study_message", "purge")),
         repo: StudyMessageRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(study, study_message, repo)
+        _fetch(study, study_message, repo, access)
         repo.delete(study_message)
         return None
 
@@ -140,10 +146,13 @@ def build_router() -> APIRouter:
     def list_items(
         study: str,
         params: PageParams = Depends(page_params),
+        access: Access = Depends(authorize("study_message", "list")),
         repo: StudyMessageRepository = Depends(repo_dep),
     ) -> Any:
         # No owner-scoped query method; filter ``list_all`` by study_id.
-        items = [s for s in repo.list_all() if getattr(s, "study_id", "") == study]
+        items = access.scope_list(
+            [s for s in repo.list_all() if getattr(s, "study_id", "") == study]
+        )
         window, next_token = paginate(items, params)
         rows = serialize_many(
             window,
