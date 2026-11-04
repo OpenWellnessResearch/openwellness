@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Route Authentication & Authorization
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-11-04T22:43:52.366Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-11-04T22:48:10.543Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 02 execution started
-state_head: 0674ae70cd83f25bc3791abf880cb00ff49351ac
+state_head: e7f4d83169ae83e2ba87673c26a2c48baecc8e86
 progress:
   total_phases: 12
   completed_phases: 1
   total_plans: 23
-  completed_plans: 12
+  completed_plans: 13
   percent: 8
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-30)
 ## Current Position
 
 Phase: 02 (Route Authentication & Authorization) — EXECUTING
-Plan: 2 of 12
+Plan: 3 of 12
 Status: Ready to execute
 Last activity: 2026-11-04 — Phase 02 execution started
 
@@ -68,6 +68,7 @@ Progress: [█░░░░░░░░░] 8%
 | Phase 01 P06 | 15min | 2 tasks | 5 files |
 | Phase 01 P11 | 15min | 2 tasks | 8 files |
 | Phase 02 P01 | 15 min | 2 tasks | 5 files |
+| Phase 02 P02 | 15 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-11: AuthSettings.refresh_collection kept; lifespan overrides RepositoryContainer.refresh_session_collection so customized deployments keep live sessions
 - [Phase 02]: Staff (coach/admin) login eligibility ignores verified_id; participant-only users still need verified_id and pid (D-01, D-03)
 - [Phase 02]: Refresh keeps consume_for_rotation ahead of the eligibility gate so an ineligible user's presented token is already consumed (A-01-3)
+- [Phase 02]: POLICY table is data keyed by resource module; ADR 0007 Phase 2 amendment records D-06 to D-09 and the 2026-11-04 developer decisions
 
 ### Pending Todos
 
@@ -122,6 +124,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-04T22:43:52.339Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-11-04T22:48:10.435Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
