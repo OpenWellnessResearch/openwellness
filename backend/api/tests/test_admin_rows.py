@@ -68,3 +68,41 @@ def test_admin_patch_can_edit_roles(app: FastAPI, world: World) -> None:
     resp = world.client(app, "owner_self").patch(url, json={"roles": {}})
     assert resp.status_code == 403
     assert stored.roles == new_roles
+
+
+# -- admin and app -------------------------------------------------------------
+
+
+@pytest.mark.parametrize("path", ["/v1/admins", "/v1/apps"])
+@pytest.mark.parametrize("caller", ["owner_self", "coach_in", "no_role"])
+def test_non_admin_403_on_admin_resources(
+    app: FastAPI, world: World, caller: str, path: str
+) -> None:
+    assert world.client(app, caller).get(path).status_code == 403
+
+
+@pytest.mark.parametrize("roles", [["administrator"], ["Admin"]])
+def test_role_match_is_exact(app: FastAPI, roles: list[str]) -> None:
+    assert _client(app, roles=roles).get("/v1/admins").status_code == 403
+
+
+def test_empty_roles_is_403(app: FastAPI) -> None:
+    client = _client(app, roles=[])
+    assert client.get("/v1/admins").status_code == 403
+    assert client.get("/v1/users").status_code == 403
+
+
+@pytest.mark.parametrize("roles", [["participant", "admin"], ["admin", "participant"]])
+def test_role_order_is_irrelevant(app: FastAPI, roles: list[str]) -> None:
+    assert _client(app, roles=roles).get("/v1/admins").status_code == 200
+
+
+def test_admin_round_trip(app: FastAPI, world: World) -> None:
+    admin = world.client(app, "admin")
+    body = {"name": {"first": "Ada"}, "user": {"id": "u-a", "name": "Ada"}}
+    resp = admin.post("/v1/admins", json=body)
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["user"]["id"] == "u-a"
+    got = admin.get("/v1/" + resp.json()["name"])
+    assert got.status_code == 200, got.text
+    assert got.json()["user"]["name"] == "Ada"
