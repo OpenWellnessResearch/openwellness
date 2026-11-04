@@ -30,6 +30,9 @@ class APISettings(OpenWellnessSettings):
     model_config = SettingsConfigDict(env_prefix="API_")
 
     title: str = "OpenWellness API"
+    # Reads API_ENABLE_DOCS. Serves /docs, /redoc and /openapi.json; must stay
+    # off on a deployed instance.
+    enable_docs: bool = False
     default_page_size: int = Field(default=50, ge=1, le=1000)
     max_page_size: int = Field(default=1000, ge=1, le=10000)
     time_range_max_span_days: int = 7

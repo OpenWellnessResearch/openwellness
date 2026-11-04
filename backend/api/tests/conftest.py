@@ -294,15 +294,12 @@ def build_test_app(fakes: dict[type, Any], email_sender: Any) -> FastAPI:
 
     from openwellness_api.auth.session_store import RefreshSessionStore
     from openwellness_api.auth.token_service import JwtTokenService
-    from openwellness_api.config import AuthSettings
+    from openwellness_api.config import APISettings, AuthSettings
     from openwellness_api.container import ApplicationContainer
     from openwellness_api.deps.auth_container import AuthContainer, default_clock
-    from openwellness_api.errors.handlers import register_exception_handlers
-    from openwellness_api.v1 import build_v1_router
+    from openwellness_api.main import create_app
 
-    instance = FastAPI(title="OpenWellness API (test)")
-    register_exception_handlers(instance)
-    instance.include_router(build_v1_router())
+    instance = create_app(lifespan=None, settings=APISettings(enable_docs=False))
 
     container = ApplicationContainer()
     named = {_IFACE_TO_PROVIDER[iface] for iface in fakes}

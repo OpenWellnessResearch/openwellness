@@ -69,7 +69,7 @@ def test_anonymous_gets_401_on_every_route(real_app: FastAPI) -> None:
 
 
 def test_anonymous_unparseable_body_gets_401_on_every_route(real_app: FastAPI) -> None:
-    assert _walk(real_app, {}, **BAD_JSON) == []
+    assert _walk(real_app, BAD_JSON["headers"], content="{") == []
 
 
 def _bad_bearers(app: FastAPI) -> dict[str, str]:
