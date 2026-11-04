@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Route Authentication & Authorization
 status: executing
-stopped_at: Completed 02-06-PLAN.md
-last_updated: "2026-11-04T23:17:47.681Z"
+stopped_at: Completed 02-07-PLAN.md
+last_updated: "2026-11-04T23:24:05.839Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 02 execution started
-state_head: 0a89a24a2f5423abc7026924d585d125a46513ac
+state_head: 45838106f2237a73766afc3979334dbee265ad26
 progress:
   total_phases: 12
   completed_phases: 1
   total_plans: 23
-  completed_plans: 17
+  completed_plans: 18
   percent: 8
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-30)
 ## Current Position
 
 Phase: 02 (Route Authentication & Authorization) — EXECUTING
-Plan: 7 of 12
+Plan: 8 of 12
 Status: Ready to execute
 Last activity: 2026-11-04 — Phase 02 execution started
 
@@ -73,6 +73,7 @@ Progress: [█░░░░░░░░░] 8%
 | Phase 02 P04 | 50 min | 3 tasks | 8 files |
 | Phase 02 P05 | 25 min | 3 tasks | 14 files |
 | Phase 02 P06 | 25 min | 3 tasks | 14 files |
+| Phase 02 P07 | 25 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,8 @@ Recent decisions affecting current work:
 - [Phase 02]: goal list scopes the unfiltered owner list before filter=, then intersects the kind query with the scoped ids so filter= can only narrow
 - [Phase 02]: 02-06: matrix sends integer week bounds for condition (parse_int range) rather than changing the wire contract
 - [Phase 02]: 02-06: message list scopes the unfiltered owner list, then intersects the subtype/condition query
+- [Phase 02]: 02-07: a body studyId on a study_settings create is dropped by the wire schema (extra=ignore), so the row binds to the path study; no 404
+- [Phase 02]: 02-07: MongoStudyRepository.get_by_name escapes the name with re.escape (A-07-1); lookup stays exact and case-insensitive
 
 ### Pending Todos
 
@@ -135,6 +138,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-04T23:17:47.577Z
-Stopped at: Completed 02-06-PLAN.md
+Last session: 2026-11-04T23:24:05.757Z
+Stopped at: Completed 02-07-PLAN.md
 Resume file: None

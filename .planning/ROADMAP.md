@@ -73,7 +73,7 @@ Plans:
   3. A non-admin gets 403 on admin resources and the user list, and a participant gets 403 on coach-facing endpoints that coaches and admins can use; a coach reads or writes participant data only for participants in studies listed in their coach_studies claim, and gets 404 for any other study, except that an owner-scoped list for an out-of-study participant with no records in the requested range answers an empty 200 and exposes no data (D-08)
   4. Audit fields such as `updated_by` record the token's identity even when a request sends a forged `X-Principal-Id` header
   5. A coach can sign in and work in the dashboard, and a participant can sign in and use the mobile app, end to end against the enforced API
-**Plans**: 6/12 plans executed
+**Plans**: 7/12 plans executed
 
 Plans:
 **Wave 1**
@@ -89,7 +89,7 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 - [x] 02-05-PLAN.md — Participant-data routers under the engine, with scope before `filter=` on `goal`
 - [x] 02-06-PLAN.md — Coach-authored and server-ingested routers under the engine; coach write check over HTTP
-- [ ] 02-07-PLAN.md — Study-parented routers under the engine; `:lookup` scoped and byte-identical
+- [x] 02-07-PLAN.md — Study-parented routers under the engine; `:lookup` scoped and byte-identical
 - [ ] 02-08-PLAN.md — Admin-only routers under the engine; duplicate-email oracle closed
 - [ ] 02-09-PLAN.md — Membership, device and Fitbit routers under the engine; Fitbit tokens never reach a non-admin
 
@@ -240,7 +240,7 @@ Declared dependencies allow parallel streams. Phase 4 waits for Phase 3 so the P
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundations & Architecture Decisions | 11/11 | Complete    | 2026-10-30 |
-| 2. Route Authentication & Authorization | 6/12 | In Progress | - |
+| 2. Route Authentication & Authorization | 7/12 | In Progress | - |
 | 3. Token Signing & Refresh Hardening | 0/TBD | Not started | - |
 | 4. Postgres Foundation & Auth on Postgres | 0/TBD | Not started | - |
 | 5. All Entities on Postgres by Default | 0/TBD | Not started | - |
