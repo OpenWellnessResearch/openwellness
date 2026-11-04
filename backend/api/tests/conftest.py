@@ -220,8 +220,7 @@ class FakeParticipantRepo(InMemoryBaseRepo, ParticipantRepository):
         )
 
 
-@pytest.fixture
-def fakes() -> dict[type, Any]:
+def make_fakes() -> dict[type, Any]:
     """Mapping from interface type to in-memory fake."""
     return {
         UserRepository: FakeUserRepo(),
@@ -233,6 +232,11 @@ def fakes() -> dict[type, Any]:
         ConversationRepository: FakeConversationRepo(),
         ParticipantRepository: FakeParticipantRepo(),
     }
+
+
+@pytest.fixture
+def fakes() -> dict[type, Any]:
+    return make_fakes()
 
 
 # Interface → ``RepositoryContainer`` provider name. The test fakes are
