@@ -11,15 +11,12 @@ from fastapi import APIRouter, Depends
 from openwellness_core.application.repositories import ParticipantRepository
 from openwellness_core.domain.models.participant import Participant as ParticipantEntity
 
-from ..common.handlers import (
-    not_found,
-    serialize_one as _serialize_one,
-)
+from ..authz.engine import Access, authorize
+from ..common.handlers import apply_patch, not_found
 from ..common.pagination import PageParams, page_params, paginate
 from ..common.resource_name import format_name
 from ..common.timestamps import epoch_to_rfc3339
 from ..deps.container import container_dep
-from ..deps.principal import Principal, get_principal
 from ..schemas.participant import (
     Participant,
     ParticipantCreate,
@@ -66,19 +63,19 @@ def build_router() -> APIRouter:
     )
     repo_dep = container_dep("participant")
 
-    def _fetch(study: str, id_: str, repo: Any) -> Any:
+    def _fetch(study: str, id_: str, repo: Any, access: Access) -> Any:
         entity = repo.get_by_id(id_)
         if entity is None:
             not_found(_COLLECTION, id_, parent=_parent_name(study))
         if entity.study_id != study:
             not_found(_COLLECTION, id_, parent=_parent_name(study))
-        return entity
+        return access.check_record(entity)
 
     @router.post("", status_code=201, response_model=Participant)
     def create(
         study: str,
         body: ParticipantCreate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("participant", "create")),
         repo: ParticipantRepository = Depends(repo_dep),
     ) -> Any:
         payload = body.model_dump(exclude_unset=False)
@@ -89,32 +86,31 @@ def build_router() -> APIRouter:
     def get(
         study: str,
         participant: str,
+        access: Access = Depends(authorize("participant", "get")),
         repo: ParticipantRepository = Depends(repo_dep),
     ) -> Any:
-        return _serialize(_fetch(study, participant, repo), study)
+        return _serialize(_fetch(study, participant, repo, access), study)
 
     @router.patch("/{participant}", response_model=Participant)
     def patch(
         study: str,
         participant: str,
         body: ParticipantUpdate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("participant", "patch")),
         repo: ParticipantRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(study, participant, repo)
-        data = body.model_dump(exclude_unset=True)
-        for key, value in data.items():
-            if hasattr(entity, key):
-                setattr(entity, key, value)
+        entity = _fetch(study, participant, repo, access)
+        apply_patch(entity, body, principal=access.principal)
         return _serialize(repo.save(entity), study)
 
     @router.delete("/{participant}", status_code=204)
     def delete(
         study: str,
         participant: str,
+        access: Access = Depends(authorize("participant", "delete")),
         repo: ParticipantRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(study, participant, repo)
+        _fetch(study, participant, repo, access)
         repo.archive(participant)
         return None
 
@@ -122,9 +118,10 @@ def build_router() -> APIRouter:
     def undelete(
         study: str,
         participant: str,
+        access: Access = Depends(authorize("participant", "undelete")),
         repo: ParticipantRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(study, participant, repo)
+        entity = _fetch(study, participant, repo, access)
         repo.unarchive(participant)
         return _serialize(entity, study)
 
@@ -132,9 +129,10 @@ def build_router() -> APIRouter:
     def purge(
         study: str,
         participant: str,
+        access: Access = Depends(authorize("participant", "purge")),
         repo: ParticipantRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(study, participant, repo)
+        _fetch(study, participant, repo, access)
         repo.delete(participant)
         return None
 
@@ -142,9 +140,10 @@ def build_router() -> APIRouter:
     def list_items(
         study: str,
         params: PageParams = Depends(page_params),
+        access: Access = Depends(authorize("participant", "list")),
         repo: ParticipantRepository = Depends(repo_dep),
     ) -> Any:
-        items = repo.get_by_study_id(study)
+        items = access.scope_list(repo.get_by_study_id(study))
         window, next_token = paginate(items, params)
         rows = [_serialize(p, study) for p in window]
         return {"participants": rows, "nextPageToken": next_token}
