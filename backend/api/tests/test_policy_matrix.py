@@ -59,6 +59,8 @@ SUCCESS = {
     "purge": 204,
 }
 RANGE = {"startTime": "2026-01-01T00:00:00Z", "endTime": "2026-01-02T00:00:00Z"}
+# condition ranges over integer weeks (parse_int), not timestamps.
+INT_RANGE = {"startTime": 0, "endTime": 99999}
 ZONE = {"name": "Cardio", "min": 1, "max": 2}
 
 _BODY_OVERRIDES: dict[str, dict[str, Any]] = {
@@ -249,7 +251,7 @@ def _call(client: TestClient, module: str, op: str, rid: str) -> Any:
     if op == "create":
         return client.post(base, json=body_for(module))
     if op == "list":
-        return client.get(base, params=RANGE)
+        return client.get(base, params=INT_RANGE if module == "condition" else RANGE)
     url = f"{base}/{rid}"
     if op == "get":
         return client.get(url)

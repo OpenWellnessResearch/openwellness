@@ -89,11 +89,14 @@ def _ids(resp: Any) -> set[str]:
 def test_coach_message_filter_stays_in_scope(app: FastAPI, world: World) -> None:
     _message(app, world, 0, STUDY_A)
     want = _message(app, world, 1, STUDY_A)
-    _message(app, world, 1, STUDY_B)
-    resp = world.client(app, "coach_in").get(M, params={"filter": "subtype=1"})
-    assert _ids(resp) == {want}
-    other = world.client(app, "coach_other").get(M, params={"filter": "subtype=1"})
-    assert other.status_code == 404
+    in_b = _message(app, world, 1, STUDY_B)
+    flt = {"filter": "subtype=1"}
+    assert _ids(world.client(app, "coach_in").get(M, params=flt)) == {want}
+    # coach_other holds only B: the filter can neither widen to A nor hide scope.
+    assert _ids(world.client(app, "coach_other").get(M, params=flt)) == {in_b}
+    # With no in-scope record left, the same request is 404 (D-08 all removed).
+    app.state.container.repositories.message().store[in_b].study_id = "study-c"
+    assert world.client(app, "coach_other").get(M, params=flt).status_code == 404
 
 
 def test_message_hostile_filter_after_scope(app: FastAPI, world: World) -> None:
