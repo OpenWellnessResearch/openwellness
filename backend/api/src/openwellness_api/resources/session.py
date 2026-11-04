@@ -10,19 +10,18 @@ from fastapi import APIRouter, Depends, Query
 from openwellness_core.application.repositories import SessionRepository
 from openwellness_core.domain.models.session import Session as SessionEntity
 
+from ..authz.engine import Access, authorize
 from ..common.handlers import (
     apply_patch,
     check_parent,
     not_found,
     serialize_many,
     serialize_one,
-    stamp_audit,
 )
 from ..common.pagination import PageParams, page_params, paginate
 from ..common.resource_name import format_name
 from ..common.time_range import parse_arrow, resolve_time_range
 from ..deps.container import container_dep
-from ..deps.principal import Principal, get_principal
 from ..schemas.session import (
     Session,
     SessionCreate,
@@ -44,25 +43,25 @@ def build_router() -> APIRouter:
     )
     repo_dep = container_dep("session")
 
-    def _fetch(user: str, id_: str, repo: Any) -> Any:
+    def _fetch(user: str, id_: str, repo: Any, access: Access) -> Any:
         entity = repo.get_by_id(id_)
         if entity is None:
             not_found(_COLLECTION, id_, parent=_parent_name(user))
-        return check_parent(
-            entity, parent_id=user, collection=_COLLECTION, parent=_PARENT
+        return access.check_record(
+            check_parent(
+                entity, parent_id=user, collection=_COLLECTION, parent=_PARENT
+            )
         )
 
     @router.post("", status_code=201, response_model=Session)
     def create(
         user: str,
         body: SessionCreate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("session", "create")),
         repo: SessionRepository = Depends(repo_dep),
     ) -> Any:
-        payload = stamp_audit(
-            body.model_dump(exclude_unset=False),
-            parent_id=user,
-            principal=principal,
+        payload = access.stamp_create(
+            body.model_dump(exclude_unset=False), parent_id=user
         )
         return serialize_one(
             repo.create(SessionEntity(**payload)),
@@ -73,10 +72,13 @@ def build_router() -> APIRouter:
 
     @router.get("/{session}", response_model=Session)
     def get(
-        user: str, session: str, repo: SessionRepository = Depends(repo_dep)
+        user: str,
+        session: str,
+        access: Access = Depends(authorize("session", "get")),
+        repo: SessionRepository = Depends(repo_dep),
     ) -> Any:
         return serialize_one(
-            _fetch(user, session, repo),
+            _fetch(user, session, repo, access),
             Session,
             collection=_COLLECTION,
             parent=_parent_name(user),
@@ -87,11 +89,11 @@ def build_router() -> APIRouter:
         user: str,
         session: str,
         body: SessionUpdate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("session", "patch")),
         repo: SessionRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(user, session, repo)
-        apply_patch(entity, body, principal=principal)
+        entity = _fetch(user, session, repo, access)
+        apply_patch(entity, body, principal=access.principal)
         return serialize_one(
             repo.save(entity),
             Session,
@@ -101,17 +103,23 @@ def build_router() -> APIRouter:
 
     @router.delete("/{session}", status_code=204)
     def delete(
-        user: str, session: str, repo: SessionRepository = Depends(repo_dep)
+        user: str,
+        session: str,
+        access: Access = Depends(authorize("session", "delete")),
+        repo: SessionRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(user, session, repo)
+        _fetch(user, session, repo, access)
         repo.archive(session)
         return None
 
     @router.post("/{session}:undelete", response_model=Session)
     def undelete(
-        user: str, session: str, repo: SessionRepository = Depends(repo_dep)
+        user: str,
+        session: str,
+        access: Access = Depends(authorize("session", "undelete")),
+        repo: SessionRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(user, session, repo)
+        entity = _fetch(user, session, repo, access)
         repo.unarchive(session)
         return serialize_one(
             entity,
@@ -122,9 +130,12 @@ def build_router() -> APIRouter:
 
     @router.post("/{session}:purge", status_code=204)
     def purge(
-        user: str, session: str, repo: SessionRepository = Depends(repo_dep)
+        user: str,
+        session: str,
+        access: Access = Depends(authorize("session", "purge")),
+        repo: SessionRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(user, session, repo)
+        _fetch(user, session, repo, access)
         repo.delete(session)
         return None
 
@@ -134,6 +145,7 @@ def build_router() -> APIRouter:
         start_time: str | None = Query(default=None, alias="startTime"),
         end_time: str | None = Query(default=None, alias="endTime"),
         params: PageParams = Depends(page_params),
+        access: Access = Depends(authorize("session", "list")),
         repo: SessionRepository = Depends(repo_dep),
     ) -> Any:
         rng = resolve_time_range(
@@ -145,7 +157,7 @@ def build_router() -> APIRouter:
             default_start=arrow.Arrow(1970, 1, 1),
             default_end=arrow.Arrow(2100, 1, 1),
         )
-        items = repo.get_for_owner_between(user, rng.start, rng.end)
+        items = access.scope_list(repo.get_for_owner_between(user, rng.start, rng.end))
         window, next_token = paginate(items, params)
         rows = serialize_many(
             window,
