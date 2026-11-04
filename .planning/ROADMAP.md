@@ -13,7 +13,7 @@ The work starts by settling the ground every later phase stands on: CI on every 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundations & Architecture Decisions** - CI on every PR, settings consolidated in `core` with `.env` loading, datastore-neutral ports, honest repository errors, and the ADRs later phases build on (completed 2026-10-30)
-- [ ] **Phase 2: Route Authentication & Authorization** - Deny-by-default bearer auth on every `/v1` route, owner binding, admin/coach role gates, and audit fields taken only from the verified token
+- [ ] **Phase 2: Route Authentication & Authorization** - Deny-by-default bearer auth on every `/v1` route, owner binding, admin role gates, study-scoped coach access, and audit fields taken only from the verified token
 - [ ] **Phase 3: Token Signing & Refresh Hardening** - Asymmetric `kid`-signed access tokens with a published JWKS, and a refresh grace window that survives concurrent clients
 - [ ] **Phase 4: Postgres Foundation & Auth on Postgres** - Alembic migrations with a one-shot `migrate`, a generic Postgres repository proven by a shared contract suite, and OTP login on Postgres
 - [ ] **Phase 5: All Entities on Postgres by Default** - Postgres adapters for every persisted port, `DATASTORE_BACKEND` selection with Postgres as default, legacy Couchbase/Mongo behind a flag
@@ -73,7 +73,32 @@ Plans:
   3. A non-admin gets 403 on admin resources and the user list, and a participant gets 403 on coach-facing endpoints that coaches and admins can use; a coach reads or writes participant data only for participants in studies listed in their coach_studies claim, and gets 404 for any other study
   4. Audit fields such as `updated_by` record the token's identity even when a request sends a forged `X-Principal-Id` header
   5. A coach can sign in and work in the dashboard, and a participant can sign in and use the mobile app, end to end against the enforced API
-**Plans**: TBD
+**Plans**: 12 plans
+
+Plans:
+**Wave 1**
+- [ ] 02-01-PLAN.md — Staff sign-in and the `coach_studies` claim; refresh re-derives claims and re-checks eligibility
+- [ ] 02-02-PLAN.md — POLICY table proven equal to ADR 0007 cell by cell; ADR 0007 amendment
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-03-PLAN.md — Strict bearer floor before body parsing on every resource route; permissive mode deleted; suites on real tokens
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02-04-PLAN.md — Policy engine, `weight` fully enforced; audit stamping, patch denylist, policy matrix
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 02-05-PLAN.md — Participant-data routers under the engine, with scope before `filter=` on `goal`
+- [ ] 02-06-PLAN.md — Coach-authored and server-ingested routers under the engine; coach write check over HTTP
+- [ ] 02-07-PLAN.md — Study-parented routers under the engine; `:lookup` scoped and byte-identical
+- [ ] 02-08-PLAN.md — Admin-only routers under the engine; duplicate-email oracle closed
+- [ ] 02-09-PLAN.md — Membership, device and Fitbit routers under the engine; Fitbit tokens never reach a non-admin
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 02-10-PLAN.md — Route enumeration on the real app, docs off by default, audit and mass-assignment sweep, corrected docs
+- [ ] 02-11-PLAN.md — Mobile gate before token save; bearer proven on a non-auth path (stops until JDK 21 and the Android SDK are installed)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 02-12-PLAN.md — Dev seed, per-role CI flow, D-10 evidence, manual UAT, roadmap and blocker updates
 **UI hint**: no
 **Research flag**: Coach authorization is decided: study-scoped through the coach_studies claim (D-02, ADRs 0006 and 0007), and Phase 2 implements the ADR 0007 table. Run a logging-only pass first to find dashboard or mobile calls that are currently unauthenticated, then switch to enforcement.
 
@@ -215,7 +240,7 @@ Declared dependencies allow parallel streams. Phase 4 waits for Phase 3 so the P
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundations & Architecture Decisions | 11/11 | Complete    | 2026-10-30 |
-| 2. Route Authentication & Authorization | 0/TBD | Not started | - |
+| 2. Route Authentication & Authorization | 0/12 | Not started | - |
 | 3. Token Signing & Refresh Hardening | 0/TBD | Not started | - |
 | 4. Postgres Foundation & Auth on Postgres | 0/TBD | Not started | - |
 | 5. All Entities on Postgres by Default | 0/TBD | Not started | - |

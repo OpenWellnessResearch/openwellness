@@ -420,20 +420,24 @@ Existing `ROW` regex `^\|\s*`[a-z_]+`\s*\|` matches the 36 policy rows only (pre
 | A6 | Mailpit or any local SMTP sink is acceptable for UAT until Phase 9 ships a mail catcher | Environment Availability | UAT cannot receive OTPs; SMTP is the only OTP channel and the code is never logged |
 | A7 | UAT on legacy stores requires developer-supplied Couchbase and Mongo; Postgres adapters do not exist until Phases 4-5 | Environment Availability | UAT is blocked without them |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Conversation membership predicate (`self-member-conversation`) is not computable.**
-   - What we know: ADR 0007 requires `Conversation.channels` to contain `participantGroup:{g.id}`; the domain `Conversation` has no `channels`, the CB persistence class holds it but `to_domain` drops it, and the API never writes it. Mobile has no conversation code yet.
-   - What's unclear: whether Phase 2 should add `channels` to the domain entity (touches the CB/Mongo mappers and the `Conversation` wire shape is unchanged if not exposed) or fail closed.
-   - Recommendation: for Phase 2, keep the table cells as in ADR 0007 (D-15 match), but make the predicate return no match (participant-self conversation get/list -> 404 / empty list) with a clearly named TODO, and record in the ADR amendment that Phase 6 defines the stored membership link. This is closed by default and no participant data leaks. If the developer wants it live now, add `channels: list[str] = field(default_factory=list)` to the domain entity and map it in `CBConversation`; plan that as an explicit extra task. STATE.md already lists this predicate as a Phase 6 blocker.
+Resolved with the developer on 2026-11-04.
 
-2. **Policy cells for `conversations:search` and `studies:lookup`.** See Pitfall 6 and A4. Needs a one-line developer confirmation (amendment text).
+1. **Conversation membership predicate (`self-member-conversation`) is not computable.** RESOLVED (developer-confirmed): participant-self fails closed until Phase 6. The table cells stay as in ADR 0007 (D-15 match) and the predicate returns no match: participant-self conversation get answers 404 and list answers an empty 200. The ADR amendment records that Phase 6 defines the stored membership link. `channels` is not added to the domain entity in this phase.
+   - What we know: ADR 0007 requires `Conversation.channels` to contain `participantGroup:{g.id}`; the domain `Conversation` has no `channels`, the CB persistence class holds it but `to_domain` drops it, and the API never writes it. Mobile has no conversation code yet. STATE.md already lists this predicate as a Phase 6 blocker.
 
-3. **Archived/deleted checks (ADR 0007 fail-closed on archived Participant or group).** Not observable on legacy adapters. Recommendation: single `_is_archived()` helper using `getattr(..., "deleted_at", None)`; real behavior arrives with Phase 5.
+2. **Policy cells for `conversations:search` and `studies:lookup`.** RESOLVED (developer-confirmed): `:search` is op `list` and `:lookup` is op `get`, both scope-filtered, recorded in the ADR amendment. See Pitfall 6 and A4.
 
-4. **Per-request `is_active` re-check.** Recommend not adding it (A5); state the accepted window in the amendment.
+3. **Archived/deleted checks (ADR 0007 fail-closed on archived Participant or group).** RESOLVED: research's recommendation, kept as planned. Not observable on legacy adapters, so one helper reads `getattr(..., "deleted_at", None)`; real behavior arrives with Phase 5.
 
-5. **Mobile "authorized resource call per role" (D-11).** The mobile app has no resource-call code and no screen that makes one (Home is a placeholder). Recommendation: the mobile proof is (a) an `androidHostTest` with Ktor `MockEngine` asserting the preemptive `Authorization` header on a non-`auth:` path, (b) the already-authenticated `auth:revokeToken all=true` path in the live UAT, and (c) the server-side pytest flow with real tokens. Say so in the UAT doc rather than adding a screen.
+4. **Per-request `is_active` re-check.** RESOLVED (developer-confirmed): not added. The 930 s staleness window is accepted for deactivated users and logout (A5) and stated in the amendment.
+
+5. **Mobile "authorized resource call per role" (D-11).** RESOLVED (developer-confirmed, recorded as an accepted deviation from D-11): the mobile app has no resource-call code and no screen that makes one (Home is a placeholder), so the substitutes are the per-role pytest flow with OTP-issued tokens, an `androidHostTest` with Ktor `MockEngine` asserting the preemptive `Authorization` header on a non-`auth:` path, and curl on the live API. No new client code. The UAT doc says so.
+
+Also settled on 2026-11-04:
+- A3: forbidden patch keys are silently ignored (developer-confirmed).
+- Anonymous malformed JSON: the developer chose 401 always, with the bearer check before body parsing. This supersedes Pattern 1's "known, harmless edge" and the Alternatives row recommending the dependency alone. A router-level dependency cannot do it, because FastAPI parses the body first; see plan 02-03 for the probed mechanism.
 
 ## Environment Availability
 
