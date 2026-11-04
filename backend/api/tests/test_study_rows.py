@@ -86,3 +86,115 @@ def test_participant_list_is_403_for_any_study(
 def test_participant_under_wrong_study_is_404(app: FastAPI, world: World) -> None:
     resp = world.client(app, "coach_both").get(_participant_url(STUDY_B, "p-a"))
     assert resp.status_code == 404
+
+
+# -- study ----------------------------------------------------------------------
+
+L = "/v1/studies:lookup"
+
+
+def test_coach_study_list_is_scoped(app: FastAPI, world: World) -> None:
+    resp = world.client(app, "coach_in").get("/v1/studies")
+    assert resp.status_code == 200, resp.text
+    assert [s["name"] for s in resp.json()["studies"]] == [f"studies/{STUDY_A}"]
+    resp = world.client(app, "coach_empty").get("/v1/studies")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["studies"] == []
+
+
+def test_lookup_scope(app: FastAPI, world: World) -> None:
+    for caller, status in (
+        ("owner_self", 200),
+        ("coach_in", 200),
+        ("owner_other", 404),
+        ("coach_other", 404),
+    ):
+        resp = world.client(app, caller).post(L, json={"name": STUDY_A})
+        assert resp.status_code == status, (caller, resp.text)
+
+
+def test_lookup_denied_matches_missing(app: FastAPI, world: World) -> None:
+    coach = world.client(app, "coach_other")
+    denied = coach.post(L, json={"name": STUDY_A})
+    missing = coach.post(L, json={"name": "no-such-study"})
+    assert denied.status_code == missing.status_code == 404
+    assert denied.text.replace(STUDY_A, "X") == missing.text.replace(
+        "no-such-study", "X"
+    )
+
+
+def test_lookup_regex_is_escaped() -> None:
+    from datetime import datetime
+
+    import mongomock
+
+    from openwellness_core.adapters.mongo.repositories.mongo_study_repository import (
+        MongoStudyRepository,
+    )
+    from openwellness_core.domain.models.study import Study
+
+    repo = MongoStudyRepository(mongo_repo=mongomock.MongoClient()["testdb"])
+    for name in ("Alpha", "Beta"):
+        repo.create(Study(app_id="app", name=name, time_created=datetime.now()))
+    assert repo.get_by_name(".*") is None
+    found = repo.get_by_name("alpha")
+    assert found is not None and found.name == "Alpha"
+
+
+def test_study_updated_by_from_token(app: FastAPI, world: World) -> None:
+    admin = world.client(app, "admin")
+    body = {
+        "appId": "app",
+        "name": "S",
+        "timeCreated": "2026-01-01T00:00:00Z",
+        "updatedBy": "forged",
+    }
+    resp = admin.post("/v1/studies", json=body)
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["updatedBy"] == TEST_ADMIN_ID
+    resp = admin.patch(
+        f"/v1/studies/{STUDY_A}", json={"description": "d", "updatedBy": "forged"}
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["updatedBy"] == TEST_ADMIN_ID
+
+
+# -- study_settings and study_message ---------------------------------------------
+
+SETTINGS = "/v1/studies/{study}/studySettings"
+MESSAGES = "/v1/studies/{study}/studyMessages"
+
+
+def test_study_settings_binding(app: FastAPI, world: World) -> None:
+    coach = world.client(app, "coach_in")
+    resp = coach.post(SETTINGS.format(study=STUDY_A), json={})
+    assert resp.status_code == 201, resp.text
+    assert (resp.json()["owner"], resp.json()["studyId"]) == (STUDY_A, STUDY_A)
+    # The body's studyId is not a wire field: it is dropped, never trusted.
+    resp = coach.post(SETTINGS.format(study=STUDY_A), json={"studyId": STUDY_B})
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["studyId"] == STUDY_A
+    other = world.client(app, "coach_other")
+    assert other.post(SETTINGS.format(study=STUDY_A), json={}).status_code == 404
+
+
+def test_study_message_scope(app: FastAPI, world: World) -> None:
+    owner = world.client(app, "owner_self")
+    assert owner.get(MESSAGES.format(study=STUDY_A)).status_code == 200
+    assert owner.get(MESSAGES.format(study=STUDY_B)).status_code == 404
+    resp = world.client(app, "coach_in").post(
+        MESSAGES.format(study=STUDY_A),
+        json={"message": "hi", "messageType": 0, "timeCreated": "2026-01-01T00:00:00Z"},
+    )
+    assert resp.status_code == 201, resp.text
+
+
+def test_self_study_fail_closed(app: FastAPI, world: World) -> None:
+    owner = world.client(app, "owner_self")
+    url = SETTINGS.format(study=STUDY_A)
+    assert owner.get(url).status_code == 200
+    participants = app.state.container.repositories.participant()
+    participants.store["p-a"].study_id = ""
+    assert owner.get(url).status_code == 404
+    del participants.store["p-a"]
+    assert owner.get(url).status_code == 404
