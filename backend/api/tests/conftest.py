@@ -8,6 +8,7 @@ methods that the API surface calls into.
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from typing import Any
 from uuid import uuid4
 
@@ -400,6 +401,33 @@ def seed_accounts(fakes: dict[type, Any]) -> dict[str, Any]:
     }
 
 
+TEST_ADMIN_ID = "test-admin"
+
+
+def token_for(
+    app: FastAPI,
+    *,
+    user_id: str,
+    participant: str | None = None,
+    roles: Sequence[str] = (),
+    coach_studies: Sequence[str] = (),
+) -> str:
+    """Mint through the app's own token service so the floor really verifies it."""
+    return app.state.auth_container.token_service().mint_access(
+        user_id=user_id,
+        participant=participant,
+        roles=roles,
+        coach_studies=coach_studies,
+    )
+
+
 @pytest.fixture
 def client(app: FastAPI) -> TestClient:
+    """Admin-authenticated: the CRUD suites test CRUD, not authorization."""
+    token = token_for(app, user_id=TEST_ADMIN_ID, roles=["admin"])
+    return TestClient(app, headers={"Authorization": f"Bearer {token}"})
+
+
+@pytest.fixture
+def anon_client(app: FastAPI) -> TestClient:
     return TestClient(app)
