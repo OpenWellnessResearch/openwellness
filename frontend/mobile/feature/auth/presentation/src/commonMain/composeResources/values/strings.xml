@@ -27,4 +27,5 @@
     <string name="auth_error_invalid_email">Enter a valid email address.</string>
     <string name="auth_error_invalid_code_format">Enter the 6-digit code.</string>
     <string name="auth_error_empty_participant">Enter your participant ID.</string>
+    <string name="auth_error_not_participant">This app is for study participants. Staff can sign in on the coaching dashboard.</string>
 </resources>
