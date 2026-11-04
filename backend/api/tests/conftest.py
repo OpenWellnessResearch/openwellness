@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -42,6 +44,7 @@ from openwellness_core.domain.exceptions.domain_exception import (
 )
 from openwellness_core.domain.models.conversation import Conversation
 from openwellness_core.domain.models.participant import Participant
+from openwellness_core.domain.models.study import Study
 from openwellness_core.domain.models.user import User
 
 
@@ -249,6 +252,8 @@ _IFACE_TO_PROVIDER: dict[type, str] = {
 from openwellness_api.resources import RESOURCE_MODULES
 
 _WIRED_MODULES = [mod.__name__ for mod in RESOURCE_MODULES]
+# Each module name is also its ``RepositoryContainer`` provider name.
+_RESOURCE_NAMES = {mod.__name__.rsplit(".", 1)[-1] for mod in RESOURCE_MODULES}
 
 
 @pytest.fixture
@@ -264,15 +269,16 @@ def fake_email_sender():
     return FakeEmailSender()
 
 
-@pytest.fixture
-def app(fakes: dict[type, Any], fake_email_sender):
+def build_test_app(fakes: dict[type, Any], email_sender: Any) -> FastAPI:
     """App with fakes wired through an ``ApplicationContainer`` instance.
 
     We bypass the real lifespan (no Couchbase/Mongo connection), build a
     container, override each fake's provider with ``providers.Object(fake)``,
-    and wire the resource modules so ``@inject`` markers see the overrides. An
-    ``AuthContainer`` is also built and attached with real collaborators backed
-    by fakeredis/mongomock + a real clock, so the auth router works end-to-end.
+    and wire the resource modules so ``@inject`` markers see the overrides. Every
+    other resource provider gets a fresh ``InMemoryOwnerRepo`` so any router can
+    run. An ``AuthContainer`` is also built and attached with real collaborators
+    backed by fakeredis/mongomock + a real clock, so the auth router works
+    end-to-end. Callers unwire with ``app.state.container.unwire()``.
     """
     import fakeredis
     import mongomock
@@ -295,15 +301,19 @@ def app(fakes: dict[type, Any], fake_email_sender):
     instance.include_router(build_v1_router())
 
     container = ApplicationContainer()
+    named = {_IFACE_TO_PROVIDER[iface] for iface in fakes}
     for iface, fake in fakes.items():
-        provider_name = _IFACE_TO_PROVIDER[iface]
-        getattr(container.repositories, provider_name).override(
+        getattr(container.repositories, _IFACE_TO_PROVIDER[iface]).override(
             providers.Object(fake)
+        )
+    for name in _RESOURCE_NAMES - named:
+        getattr(container.repositories, name).override(
+            providers.Object(InMemoryOwnerRepo())
         )
     container.wire(modules=_WIRED_MODULES)
     instance.state.container = container
 
-    # --- Auth container with test fakes (function-scoped → isolated). --- #
+    # --- Auth container with test fakes (isolated per app). --- #
     # One shared AuthSettings instance so token_service/otp_store agree on the
     # secrets/TTLs. The real clock keeps issued access tokens valid (PyJWT
     # validates ``exp`` against wall-clock time).
@@ -330,12 +340,22 @@ def app(fakes: dict[type, Any], fake_email_sender):
     refresh_adapter.ensure_indexes()
     session_store = RefreshSessionStore(repo=refresh_adapter, clock=default_clock)
     auth_container.session_store.override(providers.Object(session_store))
-    auth_container.email_sender.override(providers.Object(fake_email_sender))
+    auth_container.email_sender.override(providers.Object(email_sender))
     instance.state.auth_container = auth_container
+    return instance
 
+
+@pytest.fixture(scope="session")
+def app_builder():
+    """The app factory, for tests that want a module-scoped app (building is ~0.35 s)."""
+    return build_test_app
+
+
+@pytest.fixture
+def app(fakes: dict[type, Any], fake_email_sender):
+    instance = build_test_app(fakes, fake_email_sender)
     yield instance
-
-    container.unwire()
+    instance.state.container.unwire()
 
 
 @pytest.fixture
@@ -431,3 +451,105 @@ def client(app: FastAPI) -> TestClient:
 @pytest.fixture
 def anon_client(app: FastAPI) -> TestClient:
     return TestClient(app)
+
+
+# --------------------------------------------------------------------------- #
+# The authorization world: two studies, participants in each, and one caller of
+# every class the policy matrix distinguishes.
+# --------------------------------------------------------------------------- #
+
+STUDY_A = "study-a"
+STUDY_B = "study-b"
+
+
+@dataclass
+class World:
+    """Ids and ready-made auth headers for each caller class."""
+
+    study_a: str = STUDY_A
+    study_b: str = STUDY_B
+    p_a: str = "p-a"
+    p_b: str = "p-b"
+    p_d: str = "p-d"
+    headers: dict[str, dict[str, str]] = field(default_factory=dict)
+
+    def client(self, app: FastAPI, caller: str) -> TestClient:
+        return TestClient(app, headers=self.headers[caller])
+
+
+def reset_fakes(app: FastAPI) -> None:
+    """Empty every resource fake so one module-scoped app serves many tests."""
+    for name in _RESOURCE_NAMES:
+        repo = getattr(app.state.container.repositories, name)()
+        repo.store.clear()
+        repo.archived.clear()
+
+
+def seed_world(app: FastAPI) -> World:
+    """Store the studies, participants and users, and mint every caller's token."""
+    repos = app.state.container.repositories
+    for study_id in (STUDY_A, STUDY_B):
+        repos.study().store[study_id] = Study(
+            id=study_id, app_id="app", name=study_id, time_created=datetime.now()
+        )
+    people = (
+        ("u-a", "p-a", STUDY_A),
+        ("u-b", "p-b", STUDY_B),
+        ("u-d", "p-d", STUDY_B),
+    )
+    for user_id, pid, study_id in people:
+        roles: dict[str, Any] = {"participant": {"pid": pid}}
+        if user_id == "u-d":
+            roles["coach"] = {"studies": [STUDY_A]}
+        repos.user().store[user_id] = User(
+            id=user_id,
+            email=f"{user_id}@example.com",
+            is_active=True,
+            username=user_id,
+            verified_id="marker",
+            roles=roles,
+        )
+        repos.participant().store[pid] = Participant(
+            id=pid, user_id=user_id, study_id=study_id, is_active=True
+        )
+    # Coaches can sign in through the real OTP flow against these records.
+    for user_id, email, studies in (
+        ("u-ci", "coach-in@example.com", [STUDY_A]),
+        ("u-co", "coach-other@example.com", [STUDY_B]),
+    ):
+        repos.user().store[user_id] = User(
+            id=user_id,
+            email=email,
+            is_active=True,
+            username=user_id,
+            roles={"coach": {"studies": studies}},
+        )
+
+    def mint(user_id: str, **kw: Any) -> dict[str, str]:
+        return {"Authorization": f"Bearer {token_for(app, user_id=user_id, **kw)}"}
+
+    return World(
+        headers={
+            "owner_self": mint("u-a", participant="p-a", roles=["participant"]),
+            "owner_other": mint("u-b", participant="p-b", roles=["participant"]),
+            "coach_in": mint("u-ci", roles=["coach"], coach_studies=[STUDY_A]),
+            "coach_other": mint("u-co", roles=["coach"], coach_studies=[STUDY_B]),
+            "coach_empty": mint("u-ce", roles=["coach"]),
+            "coach_both": mint(
+                "u-cb", roles=["coach"], coach_studies=[STUDY_A, STUDY_B]
+            ),
+            "dual": mint(
+                "u-d",
+                participant="p-d",
+                roles=["participant", "coach"],
+                coach_studies=[STUDY_A],
+            ),
+            "admin": mint(TEST_ADMIN_ID, roles=["admin"]),
+            "no_role": mint("u-n"),
+        }
+    )
+
+
+@pytest.fixture
+def world(app: FastAPI) -> World:
+    return seed_world(app)

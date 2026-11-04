@@ -14,8 +14,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from openwellness_api.auth.token_service import JwtTokenService
+from openwellness_core.domain.models.weight import Weight
 
-from .conftest import TEST_ADMIN_ID, token_for
+from .conftest import TEST_ADMIN_ID, World, token_for
 
 URL = "/v1/users/any/weights"
 JSON_CT = {"Content-Type": "application/json"}
@@ -113,3 +114,30 @@ def test_auth_routes_stay_outside_the_floor(anon_client: TestClient) -> None:
         "/v1/auth:sendLoginCode", content=b"{", headers=JSON_CT
     )
     assert bad.status_code == 400, bad.text
+
+
+def _seed_weight(app: FastAPI, world: World) -> None:
+    """Stored directly: create is not the path under test here."""
+    app.state.container.repositories.weight().store["w-a"] = Weight(
+        id="w-a", owner=world.p_a, study_id=world.study_a, weight=1.0
+    )
+
+
+def test_coach_lists_in_study_weights(
+    app: FastAPI, anon_client: TestClient, world: World, fake_email_sender: Any
+) -> None:
+    _seed_weight(app, world)
+    token = _sign_in(anon_client, fake_email_sender, "coach-in@example.com")
+    resp = anon_client.get(f"/v1/users/{world.p_a}/weights", headers=_bearer(token))
+    assert resp.status_code == 200, resp.text
+    assert [w["name"] for w in resp.json()["weights"]] == ["users/p-a/weights/w-a"]
+
+
+def test_coach_other_study_is_404(
+    app: FastAPI, anon_client: TestClient, world: World, fake_email_sender: Any
+) -> None:
+    _seed_weight(app, world)
+    token = _sign_in(anon_client, fake_email_sender, "coach-other@example.com")
+    resp = anon_client.get(f"/v1/users/{world.p_a}/weights", headers=_bearer(token))
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["error"]["status"] == "NOT_FOUND"
