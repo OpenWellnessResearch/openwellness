@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Route Authentication & Authorization
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-11-04T23:06:07.412Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-11-04T23:11:38.557Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 02 execution started
-state_head: 29b91fff24a6b5c98fdbe567d1ed61a6c2428ec8
+state_head: 1bec50a4629c5e867e5a688339a5b70cb68f6e1b
 progress:
   total_phases: 12
   completed_phases: 1
   total_plans: 23
-  completed_plans: 15
+  completed_plans: 16
   percent: 8
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-30)
 ## Current Position
 
 Phase: 02 (Route Authentication & Authorization) — EXECUTING
-Plan: 5 of 12
+Plan: 6 of 12
 Status: Ready to execute
 Last activity: 2026-11-04 — Phase 02 execution started
 
@@ -71,6 +71,7 @@ Progress: [█░░░░░░░░░] 8%
 | Phase 02 P02 | 15 min | 3 tasks | 6 files |
 | Phase 02 P03 | 12 min | 2 tasks | 9 files |
 | Phase 02 P04 | 50 min | 3 tasks | 8 files |
+| Phase 02 P05 | 25 min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-03: 401 carries no WWW-Authenticate header; missing auth container surfaces as 500, never an anonymous pass
 - [Phase 02]: 02-04: authorize/Access engine decides from POLICY; a handler that skips check_record/scope_list fails open for deferred columns, so every router plan must stay in the matrix gate
 - [Phase 02]: 02-04: self-study treats a no-segment list or create as vacuous without reading the Participant (A1); membership-row create denial happens in stamp_create
+- [Phase 02]: goal list scopes the unfiltered owner list before filter=, then intersects the kind query with the scoped ids so filter= can only narrow
 
 ### Pending Todos
 
@@ -130,6 +132,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-04T23:06:07.315Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-11-04T23:11:38.443Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
