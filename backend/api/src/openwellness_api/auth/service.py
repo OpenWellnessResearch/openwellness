@@ -588,14 +588,17 @@ class AuthService:
 
         # Honour revocation / deactivation since the session was minted.
         user = self._user_repo.get_by_id(result.user_id)
-        if user is None or not user.is_active:
+        # Same predicate as login. Rotation above already consumed the presented
+        # token, so a user who lost every usable role cannot replay it later.
+        if not self._login_eligible(user):
             raise errors.unauthenticated("Invalid refresh token.")
 
-        participant = result.participant_id or self._participant_pid(user)
+        # Claims come from the current User record, not the session's copy.
         access = self._token_service.mint_access(
             user_id=user.id,
-            participant=participant,
+            participant=self._participant_pid(user),
             roles=self._roles_list(user),
+            coach_studies=self._coach_studies(user),
         )
         return RefreshedCredential(
             access_token=access,

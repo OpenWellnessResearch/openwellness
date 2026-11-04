@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 import fakeredis
@@ -613,9 +613,9 @@ def test_refresh_participant_claim_comes_from_user(ctx: _Ctx) -> None:
     assert claims.participant == "PID-NEW"
 
 
-def test_refresh_ineligible_token_stays_dead_after_role_returns(
-    ctx: _Ctx,
-) -> None:
+def test_refresh_ineligible_token_stays_dead_after_role_returns() -> None:
+    # Cooldown off: fakeredis TTLs run on real time, not the injected clock.
+    ctx = _Ctx(resend_cooldown_seconds=0)
     roles = {"coach": {"studies": ["study-a"]}}
     cred = _login_staff(ctx, roles)
     _set_roles(ctx, STAFF_USER_ID, {})
@@ -625,8 +625,7 @@ def test_refresh_ineligible_token_stays_dead_after_role_returns(
     _set_roles(ctx, STAFF_USER_ID, roles)
     _assert_invalid_refresh(ctx, cred.refresh_token)
 
-    # A fresh OTP login still works (step past the resend cooldown first).
-    ctx.now += timedelta(seconds=ctx.settings.resend_cooldown_seconds + 1)
+    # A fresh OTP login still works.
     ctx.service.send_login_code(email=STAFF_EMAIL, ip="1.2.3.4")
     code = ctx.email.last_code(STAFF_EMAIL)
     assert code is not None
