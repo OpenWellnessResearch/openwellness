@@ -1,6 +1,19 @@
 """Owner-scoped CRUD + owner-mismatch behavior for Weights (AIP wire format)."""
 
+import pytest
+from openwellness_core.application.repositories import ParticipantRepository
+from openwellness_core.domain.models.participant import Participant
+
 from .conftest import TEST_ADMIN_ID
+
+
+@pytest.fixture(autouse=True)
+def _participants(fakes) -> None:
+    """Create binds study_id to the owner's Participant, so owners must exist."""
+    for pid in ("user-1", "u-9"):
+        fakes[ParticipantRepository].store[pid] = Participant(
+            id=pid, study_id="s-1", is_active=True
+        )
 
 
 def test_weight_owner_scoped_crud(client) -> None:
@@ -12,6 +25,7 @@ def test_weight_owner_scoped_crud(client) -> None:
     assert name.startswith("users/user-1/weights/")
     weight_id = name.rsplit("/", 1)[1]
     assert created["owner"] == "user-1"
+    assert created["studyId"] == "s-1"
     assert created["updatedBy"] == TEST_ADMIN_ID
     assert created["createTime"].endswith("Z")
 
