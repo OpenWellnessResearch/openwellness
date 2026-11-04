@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Route Authentication & Authorization
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-11-04T21:22:51.275Z"
-last_activity: 2026-10-30
-last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 583f04fdc651b571d4d6301f7c3c3f04e71d77fa
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-11-04T22:43:52.366Z"
+last_activity: 2026-11-04
+last_activity_desc: Phase 02 execution started
+state_head: 0674ae70cd83f25bc3791abf880cb00ff49351ac
 progress:
   total_phases: 12
   completed_phases: 1
   total_plans: 23
-  completed_plans: 11
+  completed_plans: 12
   percent: 8
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-30)
 
 **Core value:** Someone who has never seen the codebase can clone the repo, follow the docs, and end up with a secured, working OpenWellness instance (Postgres-backed, offline-sync capable) that participants' phones and the coach dashboard can use.
-**Current focus:** Phase 2 — Route Authentication & Authorization
+**Current focus:** Phase 02 — Route Authentication & Authorization
 
 ## Current Position
 
-Phase: 02 (Route Authentication & Authorization) — READY TO EXECUTE
-Plan: Not started
+Phase: 02 (Route Authentication & Authorization) — EXECUTING
+Plan: 2 of 12
 Status: Ready to execute
-Last activity: 2026-10-30 — Phase 01 complete, transitioned to Phase 2
+Last activity: 2026-11-04 — Phase 02 execution started
 
 Progress: [█░░░░░░░░░] 8%
 
@@ -67,6 +67,7 @@ Progress: [█░░░░░░░░░] 8%
 | Phase 01 P09 | 12 min | 3 tasks | 5 files |
 | Phase 01 P06 | 15min | 2 tasks | 5 files |
 | Phase 01 P11 | 15min | 2 tasks | 8 files |
+| Phase 02 P01 | 15 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,8 @@ Recent decisions affecting current work:
 - [Phase 01]: ADR 0006/0007: study-scoped coach access via coach_studies claim; 36-row policy table; conversation and participant_group participant-self none until membership predicate (ADR 0005 open point)
 - [Phase 01]: 01-06: RefreshSession record lives in the port module; Mongo adapter takes caller-supplied collection and keeps today's document/index names
 - [Phase 01]: 01-11: AuthSettings.refresh_collection kept; lifespan overrides RepositoryContainer.refresh_session_collection so customized deployments keep live sessions
+- [Phase 02]: Staff (coach/admin) login eligibility ignores verified_id; participant-only users still need verified_id and pid (D-01, D-03)
+- [Phase 02]: Refresh keeps consume_for_rotation ahead of the eligibility gate so an ineligible user's presented token is already consumed (A-01-3)
 
 ### Pending Todos
 
@@ -119,6 +122,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-04T18:54:41.268Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-route-authentication-authorization/02-CONTEXT.md
+Last session: 2026-11-04T22:43:52.339Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
