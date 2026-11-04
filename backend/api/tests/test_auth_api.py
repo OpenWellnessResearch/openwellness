@@ -30,6 +30,7 @@ from openwellness_api.deps.auth_container import AuthContainer, default_clock
 from openwellness_api.deps.principal import Principal, require_principal
 from openwellness_api.errors.handlers import register_exception_handlers
 from openwellness_core.application.repositories import UserRepository
+from openwellness_core.domain.models.user import User
 
 
 # --------------------------------------------------------------------------- #
@@ -575,3 +576,92 @@ def test_require_principal_http_enforce_off_permissive() -> None:
     body = resp.json()
     assert body["authenticated"] is False
     assert body["id"] == "anonymous"
+
+
+# --------------------------------------------------------------------------- #
+# Staff (coach / admin) sign-in — D-01, D-03, D-05, ADR 0006
+# --------------------------------------------------------------------------- #
+def _add_staff(
+    fakes: dict[type, Any], email: str, roles: dict[str, Any]
+) -> str:
+    """Store an active, never-registered (no verified_id) user with ``roles``."""
+    user = User(
+        id=f"staff-{email}",
+        email=email,
+        is_active=True,
+        username=email.split("@")[0],
+        verified_id=None,
+        roles=roles,
+    )
+    fakes[UserRepository].store[user.id] = user
+    return user.id
+
+
+def test_staff_login_coach(
+    client: TestClient,
+    app: FastAPI,
+    fakes: dict[type, Any],
+    fake_email_sender: Any,
+) -> None:
+    email = "coach@example.com"
+    uid = _add_staff(fakes, email, {"coach": {"studies": ["study-a"]}})
+
+    body = _login(client, fake_email_sender, email)
+
+    assert body["principal"]["userId"] == uid
+    assert body["principal"]["participant"] is None
+    claims = _token_service(app).verify_access(body["accessToken"])
+    assert claims.participant is None
+    assert claims.roles == ("coach",)
+    assert claims.coach_studies == ("study-a",)
+
+
+def test_staff_login_admin(
+    client: TestClient,
+    app: FastAPI,
+    fakes: dict[type, Any],
+    fake_email_sender: Any,
+) -> None:
+    email = "admin@example.com"
+    _add_staff(fakes, email, {"admin": {}})
+
+    body = _login(client, fake_email_sender, email)
+
+    claims = _token_service(app).verify_access(body["accessToken"])
+    assert claims.roles == ("admin",)
+    assert claims.coach_studies == ()
+
+
+def test_staff_login_no_role_stays_locked_out(
+    client: TestClient,
+    fakes: dict[type, Any],
+    fake_email_sender: Any,
+) -> None:
+    email = "norole@example.com"
+    _add_staff(fakes, email, {})
+
+    send = client.post("/v1/auth:sendLoginCode", json={"email": email})
+    assert send.status_code == 200, send.text
+    assert fake_email_sender.last_code(email) is None
+
+    verify = client.post(
+        "/v1/auth:verifyLoginCode", json={"email": email, "code": "000000"}
+    )
+    assert verify.status_code == 400, verify.text
+
+
+def test_staff_login_uniform_send_body(
+    client: TestClient,
+    fakes: dict[type, Any],
+) -> None:
+    _add_staff(fakes, "coach2@example.com", {"coach": {"studies": []}})
+
+    staff = client.post(
+        "/v1/auth:sendLoginCode", json={"email": "coach2@example.com"}
+    )
+    unknown = client.post(
+        "/v1/auth:sendLoginCode", json={"email": "nobody@example.com"}
+    )
+
+    assert staff.status_code == unknown.status_code == 200
+    assert staff.json() == unknown.json()
