@@ -4,6 +4,7 @@
 - Date: 2026-10-30
 - Decisions: D-04, D-05, D-06, D-08
 - Amended: 2026-10-30 at the phase 1 review: membership predicates for `conversation` and `participant_group`, and participant-self get on the participant's own `fitbit` (developer answers; legacy Sync Gateway routing recorded in ADR 0005)
+- Amended: 2026-11-04 at phase 2 planning: denial ordering, multi-role union, coach lists, docs surface and the defaults below (see Phase 2 amendment; D-NN there are Phase 2's numbering)
 
 ## Context
 
@@ -144,6 +145,25 @@ Two live routes sit outside the seven standard operations and have their own cel
 | `/healthz` | Liveness probe; returns no data. |
 
 These are the only anonymous surface. Every other `/v1` route answers 401 without a verified token.
+
+## Phase 2 amendment
+
+The D-NN numbers in this section are Phase 2 decisions (`02-CONTEXT.md`), not the Phase 1 numbers cited in the header. Nothing here changes a cell of the Policy table, a predicate or a write rule above.
+
+- **Scope before role (D-06).** A record, owner or study outside the caller's scope is 404 for any method. 403 appears only inside the caller's own scope, or on routes with no scope such as `/v1/admins`. Worked example: a participant's `POST /v1/users/{someone-else}/conditions` is 404; the same request under their own id is 403.
+- **Multi-role union (D-07).** A caller holding several roles gets the union of their cells, each cell still under its own predicate. A coach who is also a participant has self rights on their own data and coach rights in their studies.
+- **Coach lists (D-08).** On an owner-scoped route, a coach list scopes by each record's `study_id` before `filter=`. If the scope filter removed records and none remain, the answer is 404; otherwise 200, which may be empty. No Participant is read on list. Accepted risk: a signed-in coach can tell whether an out-of-study id has records in the requested range (404 versus empty 200) without seeing them, which only an authenticated, admin-assigned coach can probe.
+- **Docs surface (D-09).** `/docs`, `/redoc` and `/openapi.json` are served only when `API_ENABLE_DOCS` is on, default off. With it off, the two entries in Unauthenticated endpoints are the whole anonymous surface. `.env.example` turns it on for local development, so a deployment must turn it off.
+- **Segment-less requests.** Developer-confirmed on 2026-11-04 as the D-06 refinement: a caller whose cell lacks the op on a create or list with no record segment gets 403, because there is no record to hide and the predicate holds vacuously (`POST /v1/users`, `GET /v1/users`, `POST /v1/devices`, `GET /v1/studies/{study}/participants` for a participant). A participant's `GET` or `POST /v1/studies/{study}/participants` answers 403 for any study: the answer is the same whichever study is named, and no read is needed.
+- **Top-level lists.** `device`, `study` and `conversation` lists carry a filter predicate: they filter silently and answer 200, possibly empty. D-08's 404 applies only to `users/{user}/...` lists. Planner default.
+- **Patch keys.** A forbidden key in a patch body is silently ignored, matching `extra="ignore"` and keeping the `/v1` wire stable. Developer-confirmed on 2026-11-04.
+- **Custom methods.** `POST /v1/conversations:search` is op `list` and `POST /v1/studies:lookup` is op `get`, both scope-filtered. Developer-confirmed on 2026-11-04; recorded as `CUSTOM_OPS` in `openwellness_api.authz.policy`.
+- **Staleness.** An access token stays valid for its 930 s lifetime (ADR 0006) after the user is deactivated, logs out or has roles changed; there is no per-request user read. Developer-confirmed on 2026-11-04. Refresh re-checks eligibility and re-derives claims.
+- **Conversation membership.** `self-member-conversation` matches nothing until a stored membership link exists on the domain entity, because the domain `Conversation` does not carry `channels`. The cells stay as tabled, no participant data leaks, and STATE.md tracks the Phase 6 work. Developer-confirmed on 2026-11-04.
+- **Archived records.** One helper reads `deleted_at` off the entity, so an archived Participant or group matches nothing. Legacy adapters never set it, so it takes effect with Phase 5. Kept as planned on 2026-11-04.
+- **Participant group lists.** `participant_group` list means the groups the `{user}` segment is a member of, for every caller; the caller's scope then applies. Planner default.
+- **Empty out-of-study list (D-08).** Developer-decided on 2026-11-04: a coach's owner-scoped list for an out-of-study participant with no records in the requested range answers an empty 200 and exposes no data. This is the one named exception to a record or participant in any other study returning 404, and it is written into AUTH-05 and Phase 2 success criterion 3.
+- **Group members.** Developer-decided on 2026-11-04: on a coach's create or patch of `participant_group`, each `participantIds` entry must be a participant whose study is in `coach_studies`, otherwise 404 identical to the normal denial. An entry with no Participant record, an archived one or an empty study_id fails closed the same way. A patch that does not set `participantIds` checks nothing, and admins are not restricted. Participant is read per entry on group writes only. This adds to the membership exception in Write rules.
 
 ## Consequences
 

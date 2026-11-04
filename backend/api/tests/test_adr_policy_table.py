@@ -120,3 +120,30 @@ def test_binding_matches_adr_0005() -> None:
         m: owner_holds.get(m) for m in POLICY
     }
     assert set(POLICY) >= set(owner_holds)
+
+
+AMENDMENT_LEADS = [
+    "Scope before role (D-06).",
+    "Multi-role union (D-07).",
+    "Coach lists (D-08).",
+    "Docs surface (D-09).",
+    "Segment-less requests.",
+    "Top-level lists.",
+    "Patch keys.",
+    "Custom methods.",
+    "Staleness.",
+    "Conversation membership.",
+    "Archived records.",
+    "Participant group lists.",
+    "Empty out-of-study list (D-08).",
+    "Group members.",
+]
+
+
+def test_phase_2_amendment_is_recorded() -> None:
+    text = (ADR_DIR / "0007-authorization-policy-table.md").read_text(encoding="utf-8")
+    assert text.count("\n## Phase 2 amendment\n") == 1
+    for lead in AMENDMENT_LEADS:
+        assert f"**{lead}**" in text, lead
+    assert "D-06 refinement" in text
+    assert len(_adr_rows("0007-authorization-policy-table.md")) == 36
