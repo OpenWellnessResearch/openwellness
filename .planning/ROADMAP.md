@@ -70,7 +70,7 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. An anonymous request to any `/v1` route other than `/v1/auth:*` and `/healthz` returns 401, proven by a test that enumerates every registered route, and the `enforce_principal` flag no longer exists
   2. A participant can read and write resources under their own `{user}`, while another user's resources return 404, including when reached through `filter=`
-  3. A non-admin gets 403 on admin resources and the user list, and a participant gets 403 on coach-facing endpoints that coaches and admins can use; a coach reads or writes participant data only for participants in studies listed in their coach_studies claim, and gets 404 for any other study
+  3. A non-admin gets 403 on admin resources and the user list, and a participant gets 403 on coach-facing endpoints that coaches and admins can use; a coach reads or writes participant data only for participants in studies listed in their coach_studies claim, and gets 404 for any other study, except that an owner-scoped list for an out-of-study participant with no records in the requested range answers an empty 200 and exposes no data (D-08)
   4. Audit fields such as `updated_by` record the token's identity even when a request sends a forged `X-Principal-Id` header
   5. A coach can sign in and work in the dashboard, and a participant can sign in and use the mobile app, end to end against the enforced API
 **Plans**: 1/12 plans executed
