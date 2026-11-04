@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Route Authentication & Authorization
 status: executing
-stopped_at: Completed 02-07-PLAN.md
-last_updated: "2026-11-04T23:24:05.839Z"
+stopped_at: Completed 02-08-PLAN.md
+last_updated: "2026-11-04T23:31:06.110Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 02 execution started
-state_head: 45838106f2237a73766afc3979334dbee265ad26
+state_head: 309cce33d69bae32378c1350796d19b864bb9860
 progress:
   total_phases: 12
   completed_phases: 1
   total_plans: 23
-  completed_plans: 18
+  completed_plans: 19
   percent: 8
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-30)
 ## Current Position
 
 Phase: 02 (Route Authentication & Authorization) — EXECUTING
-Plan: 8 of 12
+Plan: 9 of 12
 Status: Ready to execute
 Last activity: 2026-11-04 — Phase 02 execution started
 
@@ -74,6 +74,7 @@ Progress: [█░░░░░░░░░] 8%
 | Phase 02 P05 | 25 min | 3 tasks | 14 files |
 | Phase 02 P06 | 25 min | 3 tasks | 14 files |
 | Phase 02 P07 | 25 min | 2 tasks | 6 files |
+| Phase 02 P08 | 15 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-06: message list scopes the unfiltered owner list, then intersects the subtype/condition query
 - [Phase 02]: 02-07: a body studyId on a study_settings create is dropped by the wire schema (extra=ignore), so the row binds to the path study; no 404
 - [Phase 02]: 02-07: MongoStudyRepository.get_by_name escapes the name with re.escape (A-07-1); lookup stays exact and case-insensitive
+- [Phase 02]: 02-08: duplicate-email oracle closed by the admin-only user create cell (authorize runs before the handler), not by changing the 409 handler
 
 ### Pending Todos
 
@@ -138,6 +140,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-04T23:24:05.757Z
-Stopped at: Completed 02-07-PLAN.md
+Last session: 2026-11-04T23:31:06.013Z
+Stopped at: Completed 02-08-PLAN.md
 Resume file: None
