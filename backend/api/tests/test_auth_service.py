@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 import fakeredis
@@ -519,6 +519,138 @@ def test_refresh_inactive_user_401(ctx: _Ctx) -> None:
     with pytest.raises(HTTPException) as ei:
         ctx.service.refresh_token(raw_refresh=cred.refresh_token)
     assert ei.value.status_code == 401  # type: ignore[attr-defined]
+
+
+# --------------------------------------------------------------------------- #
+# Refresh re-derives claims and re-checks eligibility (D-01, ADR 0006)
+# --------------------------------------------------------------------------- #
+STAFF_EMAIL = "coach@example.com"
+STAFF_USER_ID = "user-coach-1"
+
+
+def _login_staff(ctx: _Ctx, roles: dict[str, Any]) -> Credential:
+    """Store a never-registered staff user with ``roles`` and log them in."""
+    ctx.user_repo.add(
+        User(
+            id=STAFF_USER_ID,
+            email=STAFF_EMAIL,
+            is_active=True,
+            username="coach",
+            roles=roles,
+            verified_id=None,
+        )
+    )
+    ctx.service.send_login_code(email=STAFF_EMAIL, ip="1.2.3.4")
+    code = ctx.email.last_code(STAFF_EMAIL)
+    assert code is not None
+    return ctx.service.verify_login_code(email=STAFF_EMAIL, code=code)
+
+
+def _set_roles(ctx: _Ctx, user_id: str, roles: dict[str, Any]) -> None:
+    user = ctx.user_repo.get_by_id(user_id)
+    assert user is not None
+    ctx.user_repo.save(replace(user, roles=roles))
+
+
+def _assert_invalid_refresh(ctx: _Ctx, raw: str) -> None:
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as ei:
+        ctx.service.refresh_token(raw_refresh=raw)
+    assert ei.value.status_code == 401  # type: ignore[attr-defined]
+    assert ei.value.detail["error"]["message"] == "Invalid refresh token."  # type: ignore[attr-defined]
+
+
+def test_refresh_staff_user_keeps_null_participant_and_studies(
+    ctx: _Ctx,
+) -> None:
+    cred = _login_staff(ctx, {"coach": {"studies": ["study-a"]}})
+
+    rotated = ctx.service.refresh_token(raw_refresh=cred.refresh_token)
+
+    claims = ctx.token_service.verify_access(rotated.access_token)
+    assert claims.participant is None
+    assert claims.coach_studies == ("study-a",)
+
+
+def test_refresh_picks_up_study_change(ctx: _Ctx) -> None:
+    cred = _login_staff(ctx, {"coach": {"studies": ["study-a"]}})
+    _set_roles(ctx, STAFF_USER_ID, {"coach": {"studies": ["study-b", "study-c"]}})
+
+    rotated = ctx.service.refresh_token(raw_refresh=cred.refresh_token)
+
+    claims = ctx.token_service.verify_access(rotated.access_token)
+    assert claims.coach_studies == ("study-b", "study-c")
+
+
+def test_refresh_user_with_no_usable_role_401(ctx: _Ctx) -> None:
+    cred = _login_staff(ctx, {"coach": {"studies": ["study-a"]}})
+    _set_roles(ctx, STAFF_USER_ID, {})
+
+    _assert_invalid_refresh(ctx, cred.refresh_token)
+
+
+def test_refresh_drops_removed_participant_role(ctx: _Ctx) -> None:
+    cred = _login_staff(
+        ctx,
+        {"coach": {"studies": ["study-a"]}, "participant": {"pid": "PID-9"}},
+    )
+    assert cred.participant == "participants/PID-9"
+    _set_roles(ctx, STAFF_USER_ID, {"coach": {"studies": ["study-a"]}})
+
+    rotated = ctx.service.refresh_token(raw_refresh=cred.refresh_token)
+
+    assert ctx.token_service.verify_access(rotated.access_token).participant is None
+
+
+def test_refresh_participant_claim_comes_from_user(ctx: _Ctx) -> None:
+    cred = _issue_login(ctx)
+    _set_roles(ctx, VERIFIED_USER_ID, {"participant": {"pid": "PID-NEW"}})
+
+    rotated = ctx.service.refresh_token(raw_refresh=cred.refresh_token)
+
+    claims = ctx.token_service.verify_access(rotated.access_token)
+    assert claims.participant == "PID-NEW"
+
+
+def test_refresh_ineligible_token_stays_dead_after_role_returns(
+    ctx: _Ctx,
+) -> None:
+    roles = {"coach": {"studies": ["study-a"]}}
+    cred = _login_staff(ctx, roles)
+    _set_roles(ctx, STAFF_USER_ID, {})
+    _assert_invalid_refresh(ctx, cred.refresh_token)
+
+    # The role comes back, but the presented token was consumed by rotation.
+    _set_roles(ctx, STAFF_USER_ID, roles)
+    _assert_invalid_refresh(ctx, cred.refresh_token)
+
+    # A fresh OTP login still works (step past the resend cooldown first).
+    ctx.now += timedelta(seconds=ctx.settings.resend_cooldown_seconds + 1)
+    ctx.service.send_login_code(email=STAFF_EMAIL, ip="1.2.3.4")
+    code = ctx.email.last_code(STAFF_EMAIL)
+    assert code is not None
+    again = ctx.service.verify_login_code(email=STAFF_EMAIL, code=code)
+    assert again.user_id == STAFF_USER_ID
+
+
+@pytest.mark.parametrize(
+    ("studies", "expected"),
+    [
+        ("study-a", ()),
+        (None, ()),
+        ("__absent__", ()),
+        ([1, "a", ""], ("1", "a")),
+    ],
+)
+def test_coach_studies_malformed_values_become_empty(
+    ctx: _Ctx, studies: Any, expected: tuple[str, ...]
+) -> None:
+    coach: dict[str, Any] = {} if studies == "__absent__" else {"studies": studies}
+    cred = _login_staff(ctx, {"coach": coach})
+
+    claims = ctx.token_service.verify_access(cred.access_token)
+    assert claims.coach_studies == expected
 
 
 # --------------------------------------------------------------------------- #

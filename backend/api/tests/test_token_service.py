@@ -153,6 +153,40 @@ def test_non_iterable_roles_claim_is_rejected() -> None:
             svc.verify_access(forged)
 
 
+def test_coach_studies_round_trip() -> None:
+    svc = _service()
+    token = svc.mint_access(user_id="u1", coach_studies=["s1", "s2"])
+    with time_machine.travel(FIXED_NOW, tick=False):
+        claims = svc.verify_access(token)
+    assert claims.coach_studies == ("s1", "s2")
+
+
+def test_coach_studies_absent_defaults_empty() -> None:
+    settings = _settings()
+    forged = _forge_access(settings)
+    svc = JwtTokenService(settings=settings, clock=lambda: FIXED_NOW)
+    with time_machine.travel(FIXED_NOW, tick=False):
+        assert svc.verify_access(forged).coach_studies == ()
+
+
+def test_coach_studies_non_list_rejected() -> None:
+    settings = _settings()
+    forged = _forge_access(settings, coach_studies="study-a")
+    svc = JwtTokenService(settings=settings, clock=lambda: FIXED_NOW)
+    with time_machine.travel(FIXED_NOW, tick=False):
+        with pytest.raises(InvalidAccessToken):
+            svc.verify_access(forged)
+
+
+def test_coach_studies_non_string_item_rejected() -> None:
+    settings = _settings()
+    forged = _forge_access(settings, coach_studies=["ok", 7])
+    svc = JwtTokenService(settings=settings, clock=lambda: FIXED_NOW)
+    with time_machine.travel(FIXED_NOW, tick=False):
+        with pytest.raises(InvalidAccessToken):
+            svc.verify_access(forged)
+
+
 def test_string_roles_claim_is_rejected() -> None:
     # `roles="admin"` must not silently explode into ('a','d','m','i','n'); the
     # fix rejects any non-list/tuple roles shape with InvalidAccessToken.
