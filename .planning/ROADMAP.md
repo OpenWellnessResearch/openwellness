@@ -73,7 +73,7 @@ Plans:
   3. A non-admin gets 403 on admin resources and the user list, and a participant gets 403 on coach-facing endpoints that coaches and admins can use; a coach reads or writes participant data only for participants in studies listed in their coach_studies claim, and gets 404 for any other study, except that an owner-scoped list for an out-of-study participant with no records in the requested range answers an empty 200 and exposes no data (D-08)
   4. Audit fields such as `updated_by` record the token's identity even when a request sends a forged `X-Principal-Id` header
   5. A coach can sign in and work in the dashboard, and a participant can sign in and use the mobile app, end to end against the enforced API
-**Plans**: 10/12 plans executed
+**Plans**: 11/12 plans executed
 
 Plans:
 **Wave 1**
@@ -95,7 +95,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [x] 02-10-PLAN.md — Route enumeration on the real app, docs off by default, audit and mass-assignment sweep, corrected docs
-- [ ] 02-11-PLAN.md — Mobile gate before token save; bearer proven on a non-auth path (stops until JDK 21 and the Android SDK are installed)
+- [x] 02-11-PLAN.md — Mobile gate before token save; bearer proven on a non-auth path (stops until JDK 21 and the Android SDK are installed)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 02-12-PLAN.md — Dev seed, per-role CI flow, D-10 evidence, manual UAT, roadmap and blocker updates
@@ -240,7 +240,7 @@ Declared dependencies allow parallel streams. Phase 4 waits for Phase 3 so the P
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundations & Architecture Decisions | 11/11 | Complete    | 2026-10-30 |
-| 2. Route Authentication & Authorization | 10/12 | In Progress | - |
+| 2. Route Authentication & Authorization | 11/12 | In Progress | - |
 | 3. Token Signing & Refresh Hardening | 0/TBD | Not started | - |
 | 4. Postgres Foundation & Auth on Postgres | 0/TBD | Not started | - |
 | 5. All Entities on Postgres by Default | 0/TBD | Not started | - |

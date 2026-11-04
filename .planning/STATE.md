@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Route Authentication & Authorization
 status: executing
-stopped_at: Completed 02-10-PLAN.md
-last_updated: "2026-11-04T23:48:57.004Z"
+stopped_at: Completed 02-11-PLAN.md
+last_updated: "2026-11-04T23:58:48.890Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 02 execution started
-state_head: 7cdaca826eb440a07e781929d66cffa9894b2384
+state_head: a1d4d4a1a37225a27d658abded113d6affafed5b
 progress:
   total_phases: 12
   completed_phases: 1
   total_plans: 23
-  completed_plans: 21
+  completed_plans: 22
   percent: 8
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-30)
 ## Current Position
 
 Phase: 02 (Route Authentication & Authorization) — EXECUTING
-Plan: 11 of 12
+Plan: 12 of 12
 Status: Ready to execute
 Last activity: 2026-11-04 — Phase 02 execution started
 
@@ -77,6 +77,7 @@ Progress: [█░░░░░░░░░] 8%
 | Phase 02 P08 | 15 min | 2 tasks | 5 files |
 | Phase 02 P09 | 25 min | 3 tasks | 6 files |
 | Phase 02 P10 | 20 min | 3 tasks | 9 files |
+| Phase 02 P11 | 12 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-09: participant_group list applies scope_list before the created_at window so a coach outside the study gets the D-08 404 whatever the window
 - [Phase 02]: 02-10: API docs gated by API_ENABLE_DOCS (default off); docs_url, redoc_url and openapi_url all set to None, since the UI urls alone still serve /openapi.json
 - [Phase 02]: 02-10: build_test_app builds through create_app, so the enumeration test walks the real route table; exempt set is exactly /healthz plus auth router routes
+- [Phase 02]: 02-11: mobile NotParticipant gate in persistVerified fires only on null/blank participant, before saveTokens, with best-effort refresh revoke; D-11 mobile proof is a MockEngine test (OQ5)
 
 ### Pending Todos
 
@@ -145,6 +147,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-04T23:48:56.895Z
-Stopped at: Completed 02-10-PLAN.md
+Last session: 2026-11-04T23:58:48.775Z
+Stopped at: Completed 02-11-PLAN.md
 Resume file: None
