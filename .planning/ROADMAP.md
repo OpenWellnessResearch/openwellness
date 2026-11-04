@@ -73,7 +73,7 @@ Plans:
   3. A non-admin gets 403 on admin resources and the user list, and a participant gets 403 on coach-facing endpoints that coaches and admins can use; a coach reads or writes participant data only for participants in studies listed in their coach_studies claim, and gets 404 for any other study, except that an owner-scoped list for an out-of-study participant with no records in the requested range answers an empty 200 and exposes no data (D-08)
   4. Audit fields such as `updated_by` record the token's identity even when a request sends a forged `X-Principal-Id` header
   5. A coach can sign in and work in the dashboard, and a participant can sign in and use the mobile app, end to end against the enforced API
-**Plans**: 3/12 plans executed
+**Plans**: 4/12 plans executed
 
 Plans:
 **Wave 1**
@@ -84,7 +84,7 @@ Plans:
 - [x] 02-03-PLAN.md — Strict bearer floor before body parsing on every resource route; permissive mode deleted; suites on real tokens
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 02-04-PLAN.md — Policy engine, `weight` fully enforced; audit stamping, patch denylist, policy matrix
+- [x] 02-04-PLAN.md — Policy engine, `weight` fully enforced; audit stamping, patch denylist, policy matrix
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 02-05-PLAN.md — Participant-data routers under the engine, with scope before `filter=` on `goal`
@@ -240,7 +240,7 @@ Declared dependencies allow parallel streams. Phase 4 waits for Phase 3 so the P
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundations & Architecture Decisions | 11/11 | Complete    | 2026-10-30 |
-| 2. Route Authentication & Authorization | 3/12 | In Progress | - |
+| 2. Route Authentication & Authorization | 4/12 | In Progress | - |
 | 3. Token Signing & Refresh Hardening | 0/TBD | Not started | - |
 | 4. Postgres Foundation & Auth on Postgres | 0/TBD | Not started | - |
 | 5. All Entities on Postgres by Default | 0/TBD | Not started | - |
