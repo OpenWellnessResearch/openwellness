@@ -9,9 +9,6 @@ never leaves the email body otherwise).
 
 Every test relies on the function-scoped ``app``/``client`` fixtures, so each
 gets a fresh fakeredis + mongomock — no rate-limit/lockout bleed across tests.
-
-The ``require_principal`` HTTP cases (enforce on/off) build their OWN small
-FastAPI app so they don't pollute the main app's permissive auth container.
 """
 
 from __future__ import annotations
@@ -20,15 +17,11 @@ import logging
 from typing import Any
 
 import pytest
-from dependency_injector import providers
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from openwellness_api.auth.token_service import JwtTokenService
 from openwellness_api.config import AuthSettings
-from openwellness_api.deps.auth_container import AuthContainer, default_clock
-from openwellness_api.deps.principal import Principal, require_principal
-from openwellness_api.errors.handlers import register_exception_handlers
 from openwellness_core.application.repositories import UserRepository
 from openwellness_core.domain.models.user import User
 
@@ -461,8 +454,8 @@ def test_revoke_all_with_bearer_kills_sessions(
     assert refresh.json()["error"]["status"] == "UNAUTHENTICATED"
 
 
-def test_revoke_all_without_bearer_is_401(client: TestClient) -> None:
-    resp = client.post("/v1/auth:revokeToken", json={"all": True})
+def test_revoke_all_without_bearer_is_401(anon_client: TestClient) -> None:
+    resp = anon_client.post("/v1/auth:revokeToken", json={"all": True})
     assert resp.status_code == 401, resp.text
     assert resp.json()["error"]["status"] == "UNAUTHENTICATED"
 
@@ -510,72 +503,6 @@ def test_no_code_or_raw_email_in_logs(
 
     assert code not in caplog.text
     assert email not in caplog.text
-
-
-# --------------------------------------------------------------------------- #
-# 14 & 15. require_principal at the HTTP layer (dedicated probe app)
-# --------------------------------------------------------------------------- #
-def _build_probe_app(*, enforce_principal: bool) -> tuple[FastAPI, JwtTokenService]:
-    """A minimal app with one ``require_principal``-guarded probe route.
-
-    Built standalone (NOT the conftest app) so the enforce-on/off toggle is
-    isolated. The auth_settings and token_service share one settings instance,
-    so signing and validation agree on secret/iss/aud.
-    """
-    settings = AuthSettings(
-        jwt_secret="probe-secret-" * 4,
-        jwt_issuer="openwellness-api",
-        jwt_audience="openwellness-api",
-        enforce_principal=enforce_principal,
-    )
-    token_service = JwtTokenService(settings=settings, clock=default_clock)
-
-    container = AuthContainer()
-    container.auth_settings.override(providers.Object(settings))
-    container.token_service.override(providers.Object(token_service))
-
-    app = FastAPI()
-    register_exception_handlers(app)
-    app.state.auth_container = container
-
-    @app.get("/_probe")
-    def probe(  # noqa: F811 - registered on the app router, not called directly
-        principal: Principal = Depends(require_principal),
-    ) -> dict[str, Any]:
-        return {"id": principal.id, "authenticated": principal.is_authenticated}
-
-    return app, token_service
-
-
-def test_require_principal_http_enforce_on() -> None:
-    app, token_service = _build_probe_app(enforce_principal=True)
-    client = TestClient(app)
-
-    # (a) No Authorization → 401 UNAUTHENTICATED.
-    no_auth = client.get("/_probe")
-    assert no_auth.status_code == 401, no_auth.text
-    assert no_auth.json()["error"]["status"] == "UNAUTHENTICATED"
-
-    # (b) Valid bearer → 200 authenticated.
-    token = token_service.mint_access(
-        user_id="U-probe", participant="P-probe", roles=["participant"]
-    )
-    ok = client.get("/_probe", headers={"Authorization": f"Bearer {token}"})
-    assert ok.status_code == 200, ok.text
-    body = ok.json()
-    assert body["authenticated"] is True
-    assert body["id"] == "U-probe"
-
-
-def test_require_principal_http_enforce_off_permissive() -> None:
-    app, _token_service = _build_probe_app(enforce_principal=False)
-    client = TestClient(app)
-
-    resp = client.get("/_probe")
-    assert resp.status_code == 200, resp.text
-    body = resp.json()
-    assert body["authenticated"] is False
-    assert body["id"] == "anonymous"
 
 
 # --------------------------------------------------------------------------- #

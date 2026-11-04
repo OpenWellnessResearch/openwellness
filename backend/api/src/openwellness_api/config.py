@@ -81,7 +81,6 @@ class AuthSettings(OpenWellnessSettings):
     ip_window_seconds: int = 3600
     ip_max_per_window: int = 20
     # Behaviour
-    enforce_principal: bool = False
     refresh_collection: str = "auth_refresh_sessions"
     code_pepper: str = ""
     legacy_verified_id_salt: str | None = None
