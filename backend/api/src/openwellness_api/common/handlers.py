@@ -97,25 +97,39 @@ def serialize_many(
     ]
 
 
+# No patch may move a record or forge its audit trail, for any caller.
+_IMMUTABLE_PATCH_FIELDS = {
+    "id", "owner", "study_id", "updated_by", "created_at", "updated_at",
+}
+# Only an admin may change who a user is or what they may do.
+_ADMIN_ONLY_PATCH_FIELDS = {"roles", "user_id"}
+
+
 def apply_patch(
     entity: Any,
     body: BaseModel,
     *,
-    principal: Principal | None = None,
+    principal: Principal,
 ) -> None:
     """Apply a Pydantic update body to a domain entity in place.
 
     AIP-134 + this project's chosen update-mask convention: only fields
-    the client explicitly set are mutated (``exclude_unset=True``). If
-    ``principal`` is given, ``entity.updated_by`` is stamped to the
-    principal id. ``entity.updated_at`` is bumped to the current time.
+    the client explicitly set are mutated (``exclude_unset=True``). Keys in
+    ``_IMMUTABLE_PATCH_FIELDS`` (and, for a non-admin, ``_ADMIN_ONLY_PATCH_FIELDS``)
+    are ignored silently, keeping the wire stable (assumption A3).
+    ``entity.updated_by`` is always the principal's id (D-16) and
+    ``entity.updated_at`` is bumped to the current time.
     """
     for key, value in body.model_dump(exclude_unset=True).items():
+        if key in _IMMUTABLE_PATCH_FIELDS:
+            continue
+        if key in _ADMIN_ONLY_PATCH_FIELDS and not principal.is_admin:
+            continue
         if hasattr(entity, key):
             setattr(entity, key, value)
     if hasattr(entity, "updated_at"):
         entity.updated_at = time.time()
-    if principal is not None and hasattr(entity, "updated_by"):
+    if hasattr(entity, "updated_by"):
         entity.updated_by = principal.id
 
 
@@ -131,10 +145,11 @@ def stamp_audit(
     ``parent_id`` is the path parameter (e.g. ``/users/{user}`` → the
     user id). It's injected as ``payload[parent_field]`` so the entity
     constructor sees ownership from the path, not the request body.
+    ``updated_by`` is always the verified caller (D-16), never a request value.
     """
     if parent_id is not None:
         payload[parent_field] = parent_id
-    payload.setdefault("updated_by", principal.id)
+    payload["updated_by"] = principal.id
     return payload
 
 

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 from enum import IntEnum
+from collections.abc import Iterable
 from typing import Any
 
 from fastapi import Depends, HTTPException, Request
@@ -31,6 +32,7 @@ from openwellness_core.domain.exceptions.domain_exception import (
     EntityNotFoundException,
 )
 
+from ..common.handlers import stamp_audit
 from ..deps.principal import Principal, get_principal
 from ..errors.responses import build_error
 from .policy import OPS, POLICY, Row
@@ -141,6 +143,38 @@ class Access:
             return False
         if scope == "self-owner":
             return seg.get("user") == claim
+        if scope == "self-participant":
+            participant = seg.get("participant")
+            return True if participant is None else participant == claim
+        if scope == "self-study":
+            study = seg.get("study")
+            if study is not None:
+                own = self._study_of(claim)
+                return bool(own) and study == own
+            if record is _NO_RECORD:
+                return True if self._op in ("list", "create") else _DEFER
+            own = self._study_of(claim)
+            return bool(own) and getattr(record, "id", None) == own
+        if scope in ("self-device", "self-fitbit"):
+            if record is _NO_RECORD:
+                if self._op == "list":
+                    return _DEFER if "list" in self._row.self_ops else True
+                return True if self._op == "create" else _DEFER
+            return getattr(record, "participant_id", None) == claim
+        if scope == "self-member-group":
+            if seg.get("user") != claim:
+                return False
+            if record is _NO_RECORD:
+                return True if self._op in ("list", "create") else _DEFER
+            members = getattr(record, "participant_ids", None) or []
+            return claim in members and not _archived(record)
+        if scope == "self-member-conversation":
+            if record is _NO_RECORD:
+                return True if self._op == "create" else _DEFER
+            # shortcut: the domain Conversation carries no channels, so participants
+            # match nothing; the stored membership link is Phase 6 (ADR 0007 Phase 2
+            # amendment).
+            return False
         return False
 
     def _coach_pred(self, record: Any) -> bool | None:
@@ -152,7 +186,16 @@ class Access:
         study = self._path.get("study")
         if study is not None:
             return held(study)
-        if self._row.binding == "participant":
+        binding = self._row.binding
+        if binding is None:  # the study row with no segment: list, :lookup, create
+            if record is _NO_RECORD:
+                return True if self._op == "create" else _DEFER
+            return held(getattr(record, "id", ""))
+        if binding == "membership":
+            if record is _NO_RECORD:
+                return True if self._op == "create" else _DEFER
+            return held(getattr(record, "study_id", ""))
+        if binding == "participant":
             if record is _NO_RECORD:
                 if self._op == "create":
                     return held(self._study_of(self._path.get("user")))
@@ -242,3 +285,55 @@ class Access:
         if "{user}" in self._row.route and items and not kept:
             self._deny(Verdict.NOT_FOUND)
         return kept
+
+    def check_record(self, entity: Any, *, name: str | None = None) -> Any:
+        """Return ``entity`` if the caller may act on it, else raise 403 or 404.
+
+        ``name`` is for a route whose id is in the body, so the URL cannot supply
+        it: the 404 then reads ``{collection}/{name} not found``.
+        """
+        if self._allowed:
+            return entity
+        best = self._best
+        for column in self._deferred:
+            verdict = self._verdict(column, entity)
+            assert verdict is not None  # a record was supplied
+            best = max(best, verdict)
+        if best is not Verdict.ALLOW:
+            self._deny(best, name=name)
+        return entity
+
+    def stamp_create(
+        self, payload: dict[str, Any], *, parent_id: str | None
+    ) -> dict[str, Any]:
+        """Bind a new record to a study server-side, then stamp owner and audit (D-16)."""
+        binding = self._row.binding
+        if binding is None:
+            raise ValueError(
+                f"stamp_create: {self._module} has no study binding; "
+                "its router keeps its own create"
+            )
+        supplied = payload.get("study_id") or ""
+        if binding == "participant":
+            study = self._study_of(parent_id)
+        elif binding == "study":
+            study = parent_id or ""
+        else:  # membership: no owner to derive from, the caller names the study
+            study = supplied
+            if study and not self.principal.is_admin:
+                if study not in self.principal.coach_studies:
+                    study = ""
+        if not study or (supplied and supplied != study):
+            self._deny(Verdict.NOT_FOUND)
+        payload["study_id"] = study
+        return stamp_audit(payload, parent_id=parent_id, principal=self.principal)
+
+    def check_members(self, participant_ids: Iterable[str]) -> None:
+        """A coach's group may only hold participants of their studies (A-09-2)."""
+        if self.principal.is_admin:
+            return
+        studies = self.principal.coach_studies
+        for pid in participant_ids:
+            study = self._study_of(pid)
+            if not study or study not in studies:
+                self._deny(Verdict.NOT_FOUND)
