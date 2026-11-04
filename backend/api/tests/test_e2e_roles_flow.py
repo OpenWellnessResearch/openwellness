@@ -58,7 +58,10 @@ def test_signed_in_caller_reaches_a_resource_route(
     anon_client: TestClient, seed_accounts: dict[str, Any], fake_email_sender: Any
 ) -> None:
     token = _sign_in(anon_client, fake_email_sender, seed_accounts["login_email"])
-    resp = anon_client.get(URL, headers=_bearer(token))
+    # Under their own participant id: another id is 404 once the policy runs.
+    resp = anon_client.get(
+        f"/v1/users/{seed_accounts['login_pid']}/weights", headers=_bearer(token)
+    )
     assert resp.status_code == 200, resp.text
 
 

@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, Query
 from openwellness_core.application.repositories import WeightRepository
 from openwellness_core.domain.models.weight import Weight as WeightEntity
 
+from ..authz.engine import Access, authorize
 from ..common.handlers import (
     apply_patch,
     check_parent,
@@ -132,6 +133,7 @@ def build_router() -> APIRouter:
         start_time: str | None = Query(default=None, alias="startTime"),
         end_time: str | None = Query(default=None, alias="endTime"),
         params: PageParams = Depends(page_params),
+        access: Access = Depends(authorize("weight", "list")),
         repo: WeightRepository = Depends(repo_dep),
     ) -> Any:
         rng = resolve_time_range(
@@ -143,7 +145,7 @@ def build_router() -> APIRouter:
             default_start=arrow.Arrow(1970, 1, 1),
             default_end=arrow.Arrow(2100, 1, 1),
         )
-        items = repo.get_for_owner_between(user, rng.start, rng.end)
+        items = access.scope_list(repo.get_for_owner_between(user, rng.start, rng.end))
         window, next_token = paginate(items, params)
         rows = serialize_many(
             window, Weight, collection=_COLLECTION, parent=_parent_name(user)
