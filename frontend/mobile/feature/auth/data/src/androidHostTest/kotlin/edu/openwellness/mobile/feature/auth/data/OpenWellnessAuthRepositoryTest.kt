@@ -38,7 +38,7 @@ private const val ERROR_429_WITH_SECS =
 private const val ERROR_429_NO_SECS =
     """{"error":{"code":429,"status":"RESOURCE_EXHAUSTED","message":"Slow down.","details":[]}}"""
 
-private class FakeTokenStorage(
+internal class FakeTokenStorage(
     initialAccess: String? = null,
     initialRefresh: String? = null,
 ) : AuthTokenStorage {
