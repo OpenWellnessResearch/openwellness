@@ -486,6 +486,22 @@ class AuthService:
         if participant is None:
             raise errors.invalid_code()
 
+        # Refresh and login read the participant claim from roles.participant.pid
+        # (ADR 0005: it IS Participant.id), so registration must leave the two
+        # equal: fill a missing role, refuse a conflicting one with the uniform 400.
+        pid = str(participant.id)
+        existing_pid = self._participant_pid(user)
+        if existing_pid and str(existing_pid) != pid:
+            raise errors.invalid_code()
+        roles = dict(user.roles) if isinstance(user.roles, dict) else {}
+        participant_role = roles.get("participant")
+        participant_role = (
+            dict(participant_role) if isinstance(participant_role, dict) else {}
+        )
+        participant_role["pid"] = pid
+        roles["participant"] = participant_role
+        user.roles = roles
+
         # Register: stamp the verified marker + registration metadata, and set
         # the (normalized) email so subsequent login-by-email resolves to this
         # account. Activate the account.

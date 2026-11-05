@@ -51,7 +51,7 @@ VERIFIED_PID = "PID-100"
 UNVERIFIED_EMAIL = "bob@example.com"
 UNVERIFIED_USER_ID = "user-unverified-1"
 UNVERIFIED_PARTICIPANT_ID = "participant-doc-1"
-UNVERIFIED_PID = "PID-200"
+UNVERIFIED_PID = UNVERIFIED_PARTICIPANT_ID  # roles pid IS Participant.id (ADR 0005)
 
 
 # --------------------------------------------------------------------------- #
@@ -415,6 +415,45 @@ def test_verify_wrong_code_uniform_400(ctx: _Ctx) -> None:
     status2, message2 = _http_status_detail(ei2)
     assert status2 == 400
     assert message == message2
+
+
+def _register(ctx: _Ctx) -> Credential:
+    ctx.service.send_registration_code(
+        email=UNVERIFIED_EMAIL,
+        participant_id=UNVERIFIED_PARTICIPANT_ID,
+        ip="1.2.3.4",
+    )
+    code = ctx.email.last_code(UNVERIFIED_EMAIL)
+    assert code is not None
+    return ctx.service.verify_registration_code(email=UNVERIFIED_EMAIL, code=code)
+
+
+def test_registration_without_participant_role_refreshes(ctx: _Ctx) -> None:
+    _set_roles(ctx, UNVERIFIED_USER_ID, {})
+
+    cred = _register(ctx)
+
+    user = ctx.user_repo.get_by_id(UNVERIFIED_USER_ID)
+    assert user is not None
+    assert user.roles["participant"]["pid"] == UNVERIFIED_PARTICIPANT_ID
+    rotated = ctx.service.refresh_token(raw_refresh=cred.refresh_token)
+    claims = ctx.token_service.verify_access(rotated.access_token)
+    assert claims.participant == UNVERIFIED_PARTICIPANT_ID
+
+
+def test_registration_with_conflicting_pid_is_uniform_400(ctx: _Ctx) -> None:
+    from fastapi import HTTPException
+
+    _set_roles(ctx, UNVERIFIED_USER_ID, {"participant": {"pid": "PID-OTHER"}})
+
+    with pytest.raises(HTTPException) as ei:
+        _register(ctx)
+
+    status, _ = _http_status_detail(ei)
+    assert status == 400
+    user = ctx.user_repo.get_by_id(UNVERIFIED_USER_ID)
+    assert user is not None
+    assert not user.verified_id  # nothing persisted
 
 
 def test_verify_registration_wrong_code_uniform_400(ctx: _Ctx) -> None:
