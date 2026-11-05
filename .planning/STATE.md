@@ -131,6 +131,7 @@ None yet.
 
 ### Blockers/Concerns
 
+- [Phase 2]: Verification found gaps; blocking items are tracked outside this repo.
 - [Phase 6]: Conversation and participant-group membership predicate (ADR 0005 open point) must be defined before their Sync Stream rules
 - [Phase 4]: The Postgres refresh-session store must honor the refresh grace window from Phase 3 (cover it in the contract suite)
 - [Phase 6]: PowerSync Postgres bucket storage is Beta; spike it, with a second postgres container as fallback
