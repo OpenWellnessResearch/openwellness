@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Route Authentication & Authorization
-status: executing
-stopped_at: Completed 02-11-PLAN.md
-last_updated: "2026-11-05T00:06:38.702Z"
+status: verifying
+stopped_at: Completed 02-12-PLAN.md
+last_updated: "2026-11-05T00:07:57.372Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 02 execution started
-state_head: 0d94c530f9d0b06c410dd9eb896d38a8dc075ae2
+state_head: bf51573c24b949c9fb9882fce1851bc5e230ae83
 progress:
   total_phases: 12
   completed_phases: 1
   total_plans: 23
-  completed_plans: 22
+  completed_plans: 23
   percent: 8
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-30)
 
 Phase: 02 (Route Authentication & Authorization) — EXECUTING
 Plan: 12 of 12
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-04 — Phase 02 execution started
 
 Progress: [█░░░░░░░░░] 8%
@@ -78,6 +78,7 @@ Progress: [█░░░░░░░░░] 8%
 | Phase 02 P09 | 25 min | 3 tasks | 6 files |
 | Phase 02 P10 | 20 min | 3 tasks | 9 files |
 | Phase 02 P11 | 12 min | 2 tasks | 6 files |
+| Phase 02 P12 | 10 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-10: API docs gated by API_ENABLE_DOCS (default off); docs_url, redoc_url and openapi_url all set to None, since the UI urls alone still serve /openapi.json
 - [Phase 02]: 02-10: build_test_app builds through create_app, so the enumeration test walks the real route table; exempt set is exactly /healthz plus auth router routes
 - [Phase 02]: 02-11: mobile NotParticipant gate in persistVerified fires only on null/blank participant, before saveTokens, with best-effort refresh revoke; D-11 mobile proof is a MockEngine test (OQ5)
+- [Phase 02]: 02-12: dev seed re-checks the participant pid on every run so an interrupted run is repaired; CI and the manual UAT share one seed
 
 ### Pending Todos
 
@@ -145,6 +147,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-04T23:58:48.775Z
-Stopped at: Completed 02-11-PLAN.md
+Last session: 2026-11-05T00:07:57.260Z
+Stopped at: Completed 02-12-PLAN.md
 Resume file: None

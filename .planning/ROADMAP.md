@@ -73,7 +73,7 @@ Plans:
   3. A non-admin gets 403 on admin resources and the user list, and a participant gets 403 on coach-facing endpoints that coaches and admins can use; a coach reads or writes participant data only for participants in studies listed in their coach_studies claim, and gets 404 for any other study, except that an owner-scoped list for an out-of-study participant with no records in the requested range answers an empty 200 and exposes no data (D-08)
   4. Audit fields such as `updated_by` record the token's identity even when a request sends a forged `X-Principal-Id` header
   5. A coach can sign in and work in the dashboard, and a participant can sign in and use the mobile app, end to end against the enforced API (the dashboard is proven by sign-in, session restore and sign-out; D-11 deviation, developer-accepted 2026-11-04)
-**Plans**: 11/12 plans executed
+**Plans**: 12/12 plans executed
 
 Plans:
 **Wave 1**
@@ -98,7 +98,7 @@ Plans:
 - [x] 02-11-PLAN.md — Mobile gate before token save; bearer proven on a non-auth path (stops until JDK 21 and the Android SDK are installed)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 02-12-PLAN.md — Dev seed, per-role CI flow, D-10 evidence, manual UAT, roadmap and blocker updates
+- [x] 02-12-PLAN.md — Dev seed, per-role CI flow, D-10 evidence, manual UAT, roadmap and blocker updates
 **UI hint**: no
 **Research flag**: Coach authorization is decided: study-scoped through the coach_studies claim (D-02, ADRs 0006 and 0007), and Phase 2 implements the ADR 0007 table. D-10 replaced that observation pass with a recorded grep of dashboard and mobile call sites (see 02-MANUAL-UAT.md): the clients call only auth:* today, so enforcement lands in one step and no permissive mode exists.
 
@@ -240,7 +240,7 @@ Declared dependencies allow parallel streams. Phase 4 waits for Phase 3 so the P
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundations & Architecture Decisions | 11/11 | Complete    | 2026-10-30 |
-| 2. Route Authentication & Authorization | 11/12 | In Progress | - |
+| 2. Route Authentication & Authorization | 12/12 | In Progress | - |
 | 3. Token Signing & Refresh Hardening | 0/TBD | Not started | - |
 | 4. Postgres Foundation & Auth on Postgres | 0/TBD | Not started | - |
 | 5. All Entities on Postgres by Default | 0/TBD | Not started | - |
