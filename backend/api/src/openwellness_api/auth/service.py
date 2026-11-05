@@ -149,6 +149,40 @@ class AuthService:
         return list(roles.keys())
 
     @staticmethod
+    def _is_staff(user: Any) -> bool:
+        """True when the user holds a ``coach`` or ``admin`` role."""
+        roles = getattr(user, "roles", None)
+        roles = roles if isinstance(roles, dict) else {}
+        return "coach" in roles or "admin" in roles
+
+    @staticmethod
+    def _coach_studies(user: Any) -> list[str]:
+        """Study ids from ``roles.coach.studies`` (ADR 0006), else ``[]``.
+
+        Stored ids may be non-strings (``roles`` is untyped), so each is coerced
+        with ``str``; malformed shapes yield ``[]`` rather than raising.
+        """
+        roles = getattr(user, "roles", None)
+        coach = roles.get("coach") if isinstance(roles, dict) else None
+        studies = coach.get("studies") if isinstance(coach, dict) else None
+        if not isinstance(studies, list):
+            return []
+        return [str(s) for s in studies if s]
+
+    def _login_eligible(self, user: Any) -> bool:
+        """Single login predicate shared by send, verify and refresh.
+
+        Active AND (holds a coach/admin role OR is a registered participant
+        with a pid). ``verified_id`` is consulted only for participant-only
+        users (D-03); staff sign in without ever registering.
+        """
+        if user is None or not user.is_active:
+            return False
+        if self._is_staff(user):
+            return True
+        return bool(user.verified_id) and bool(self._participant_pid(user))
+
+    @staticmethod
     def _participant_pid(user: Any) -> str | None:
         """Legacy participant id, confirmed shape ``roles.participant.pid``."""
         # Treat malformed (non-dict) roles as empty so bad stored data can't
@@ -276,9 +310,10 @@ class AuthService:
     def _eligible_login_user(self, norm: str, users: list[Any]) -> Any | None:
         """Return the single eligible login user, else ``None``.
 
-        Eligible iff EXACTLY ONE user owns the email AND that user is active,
-        has a truthy ``verified_id`` (already registered), and has a participant
-        pid. More than one user for an email is ambiguous → ineligible + an
+        Eligible iff EXACTLY ONE user owns the email AND ``_login_eligible``
+        accepts it: active, and either a coach/admin or a registered
+        participant (truthy ``verified_id`` plus a participant pid). More than
+        one user for an email is ambiguous → ineligible + an
         internal alert keyed by the email's sha256 (never the raw email).
         """
         if not users:
@@ -289,13 +324,7 @@ class AuthService:
             )
             return None
         user = users[0]
-        if not user.is_active:
-            return None
-        if not user.verified_id:
-            return None
-        if not self._participant_pid(user):
-            return None
-        return user
+        return user if self._login_eligible(user) else None
 
     # ------------------------------------------------------------------ #
     # Flow 2 — verify login code
@@ -323,16 +352,11 @@ class AuthService:
         # Re-validate against the CURRENT user state (honour deactivation /
         # role changes since the code was issued). Any failure → uniform 400.
         user = self._user_repo.get_by_id(user_id) if user_id else None
-        if (
-            user is None
-            or not user.is_active
-            or not user.verified_id
-            or not self._participant_pid(user)
-        ):
+        if not self._login_eligible(user):
             raise errors.invalid_code()
 
-        # The guard above already rejected a falsy pid, so the participant id is
-        # always present here (no fallback to the OTP-stored value needed).
+        # Re-derived from the user, never the OTP-stored value. None for a
+        # staff user without a participant role.
         participant = self._participant_pid(user)
         return self._issue_credential(user, participant, user_agent, ip)
 
@@ -419,7 +443,10 @@ class AuthService:
         # Now decide eligibility from the gathered results.
         if participant is None or not participant.user_id:
             return None
-        if user is None or user.verified_id:
+        # Staff sign in without registering, so a falsy verified_id does not mean
+        # "unclaimed" for them; registering would hand their roles to whoever
+        # knows the linked participant id.
+        if user is None or user.verified_id or self._is_staff(user):
             return None
         # Email must not already belong to a DIFFERENT verified account.
         for owner in owners:
@@ -452,7 +479,7 @@ class AuthService:
         # and still be unregistered (a concurrent registration would have set
         # verified_id); the participant must still exist.
         user = self._user_repo.get_by_id(user_id) if user_id else None
-        if user is None or user.verified_id:
+        if user is None or user.verified_id or self._is_staff(user):
             raise errors.invalid_code()
         participant = (
             self._participant_repo.get_by_id(participant_id)
@@ -461,6 +488,22 @@ class AuthService:
         )
         if participant is None:
             raise errors.invalid_code()
+
+        # Refresh and login read the participant claim from roles.participant.pid
+        # (ADR 0005: it IS Participant.id), so registration must leave the two
+        # equal: fill a missing role, refuse a conflicting one with the uniform 400.
+        pid = str(participant.id)
+        existing_pid = self._participant_pid(user)
+        if existing_pid and str(existing_pid) != pid:
+            raise errors.invalid_code()
+        roles = dict(user.roles) if isinstance(user.roles, dict) else {}
+        participant_role = roles.get("participant")
+        participant_role = (
+            dict(participant_role) if isinstance(participant_role, dict) else {}
+        )
+        participant_role["pid"] = pid
+        roles["participant"] = participant_role
+        user.roles = roles
 
         # Register: stamp the verified marker + registration metadata, and set
         # the (normalized) email so subsequent login-by-email resolves to this
@@ -504,6 +547,7 @@ class AuthService:
             user_id=user.id,
             participant=participant_id,
             roles=self._roles_list(user),
+            coach_studies=self._coach_studies(user),
         )
         raw_refresh = self._token_service.new_refresh()
         refresh_hash = self._token_service.hash_refresh(raw_refresh)
@@ -563,14 +607,17 @@ class AuthService:
 
         # Honour revocation / deactivation since the session was minted.
         user = self._user_repo.get_by_id(result.user_id)
-        if user is None or not user.is_active:
+        # Same predicate as login. Rotation above already consumed the presented
+        # token, so a user who lost every usable role cannot replay it later.
+        if not self._login_eligible(user):
             raise errors.unauthenticated("Invalid refresh token.")
 
-        participant = result.participant_id or self._participant_pid(user)
+        # Claims come from the current User record, not the session's copy.
         access = self._token_service.mint_access(
             user_id=user.id,
-            participant=participant,
+            participant=self._participant_pid(user),
             roles=self._roles_list(user),
+            coach_studies=self._coach_studies(user),
         )
         return RefreshedCredential(
             access_token=access,

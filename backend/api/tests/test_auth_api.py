@@ -9,9 +9,6 @@ never leaves the email body otherwise).
 
 Every test relies on the function-scoped ``app``/``client`` fixtures, so each
 gets a fresh fakeredis + mongomock — no rate-limit/lockout bleed across tests.
-
-The ``require_principal`` HTTP cases (enforce on/off) build their OWN small
-FastAPI app so they don't pollute the main app's permissive auth container.
 """
 
 from __future__ import annotations
@@ -20,16 +17,13 @@ import logging
 from typing import Any
 
 import pytest
-from dependency_injector import providers
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from openwellness_api.auth.token_service import JwtTokenService
 from openwellness_api.config import AuthSettings
-from openwellness_api.deps.auth_container import AuthContainer, default_clock
-from openwellness_api.deps.principal import Principal, require_principal
-from openwellness_api.errors.handlers import register_exception_handlers
 from openwellness_core.application.repositories import UserRepository
+from openwellness_core.domain.models.user import User
 
 
 # --------------------------------------------------------------------------- #
@@ -460,8 +454,8 @@ def test_revoke_all_with_bearer_kills_sessions(
     assert refresh.json()["error"]["status"] == "UNAUTHENTICATED"
 
 
-def test_revoke_all_without_bearer_is_401(client: TestClient) -> None:
-    resp = client.post("/v1/auth:revokeToken", json={"all": True})
+def test_revoke_all_without_bearer_is_401(anon_client: TestClient) -> None:
+    resp = anon_client.post("/v1/auth:revokeToken", json={"all": True})
     assert resp.status_code == 401, resp.text
     assert resp.json()["error"]["status"] == "UNAUTHENTICATED"
 
@@ -512,66 +506,89 @@ def test_no_code_or_raw_email_in_logs(
 
 
 # --------------------------------------------------------------------------- #
-# 14 & 15. require_principal at the HTTP layer (dedicated probe app)
+# Staff (coach / admin) sign-in — D-01, D-03, D-05, ADR 0006
 # --------------------------------------------------------------------------- #
-def _build_probe_app(*, enforce_principal: bool) -> tuple[FastAPI, JwtTokenService]:
-    """A minimal app with one ``require_principal``-guarded probe route.
-
-    Built standalone (NOT the conftest app) so the enforce-on/off toggle is
-    isolated. The auth_settings and token_service share one settings instance,
-    so signing and validation agree on secret/iss/aud.
-    """
-    settings = AuthSettings(
-        jwt_secret="probe-secret-" * 4,
-        jwt_issuer="openwellness-api",
-        jwt_audience="openwellness-api",
-        enforce_principal=enforce_principal,
+def _add_staff(
+    fakes: dict[type, Any], email: str, roles: dict[str, Any]
+) -> str:
+    """Store an active, never-registered (no verified_id) user with ``roles``."""
+    user = User(
+        id=f"staff-{email}",
+        email=email,
+        is_active=True,
+        username=email.split("@")[0],
+        verified_id=None,
+        roles=roles,
     )
-    token_service = JwtTokenService(settings=settings, clock=default_clock)
-
-    container = AuthContainer()
-    container.auth_settings.override(providers.Object(settings))
-    container.token_service.override(providers.Object(token_service))
-
-    app = FastAPI()
-    register_exception_handlers(app)
-    app.state.auth_container = container
-
-    @app.get("/_probe")
-    def probe(  # noqa: F811 - registered on the app router, not called directly
-        principal: Principal = Depends(require_principal),
-    ) -> dict[str, Any]:
-        return {"id": principal.id, "authenticated": principal.is_authenticated}
-
-    return app, token_service
+    fakes[UserRepository].store[user.id] = user
+    return user.id
 
 
-def test_require_principal_http_enforce_on() -> None:
-    app, token_service = _build_probe_app(enforce_principal=True)
-    client = TestClient(app)
+def test_staff_login_coach(
+    client: TestClient,
+    app: FastAPI,
+    fakes: dict[type, Any],
+    fake_email_sender: Any,
+) -> None:
+    email = "coach@example.com"
+    uid = _add_staff(fakes, email, {"coach": {"studies": ["study-a"]}})
 
-    # (a) No Authorization → 401 UNAUTHENTICATED.
-    no_auth = client.get("/_probe")
-    assert no_auth.status_code == 401, no_auth.text
-    assert no_auth.json()["error"]["status"] == "UNAUTHENTICATED"
+    body = _login(client, fake_email_sender, email)
 
-    # (b) Valid bearer → 200 authenticated.
-    token = token_service.mint_access(
-        user_id="U-probe", participant="P-probe", roles=["participant"]
+    assert body["principal"]["userId"] == uid
+    assert body["principal"]["participant"] is None
+    claims = _token_service(app).verify_access(body["accessToken"])
+    assert claims.participant is None
+    assert claims.roles == ("coach",)
+    assert claims.coach_studies == ("study-a",)
+
+
+def test_staff_login_admin(
+    client: TestClient,
+    app: FastAPI,
+    fakes: dict[type, Any],
+    fake_email_sender: Any,
+) -> None:
+    email = "admin@example.com"
+    _add_staff(fakes, email, {"admin": {}})
+
+    body = _login(client, fake_email_sender, email)
+
+    claims = _token_service(app).verify_access(body["accessToken"])
+    assert claims.roles == ("admin",)
+    assert claims.coach_studies == ()
+
+
+def test_staff_login_no_role_stays_locked_out(
+    client: TestClient,
+    fakes: dict[type, Any],
+    fake_email_sender: Any,
+) -> None:
+    email = "norole@example.com"
+    _add_staff(fakes, email, {})
+
+    send = client.post("/v1/auth:sendLoginCode", json={"email": email})
+    assert send.status_code == 200, send.text
+    assert fake_email_sender.last_code(email) is None
+
+    verify = client.post(
+        "/v1/auth:verifyLoginCode", json={"email": email, "code": "000000"}
     )
-    ok = client.get("/_probe", headers={"Authorization": f"Bearer {token}"})
-    assert ok.status_code == 200, ok.text
-    body = ok.json()
-    assert body["authenticated"] is True
-    assert body["id"] == "U-probe"
+    assert verify.status_code == 400, verify.text
 
 
-def test_require_principal_http_enforce_off_permissive() -> None:
-    app, _token_service = _build_probe_app(enforce_principal=False)
-    client = TestClient(app)
+def test_staff_login_uniform_send_body(
+    client: TestClient,
+    fakes: dict[type, Any],
+) -> None:
+    _add_staff(fakes, "coach2@example.com", {"coach": {"studies": []}})
 
-    resp = client.get("/_probe")
-    assert resp.status_code == 200, resp.text
-    body = resp.json()
-    assert body["authenticated"] is False
-    assert body["id"] == "anonymous"
+    staff = client.post(
+        "/v1/auth:sendLoginCode", json={"email": "coach2@example.com"}
+    )
+    unknown = client.post(
+        "/v1/auth:sendLoginCode", json={"email": "nobody@example.com"}
+    )
+
+    assert staff.status_code == unknown.status_code == 200
+    assert staff.json() == unknown.json()

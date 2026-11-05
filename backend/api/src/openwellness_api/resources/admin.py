@@ -10,15 +10,14 @@ from openwellness_core.application.repositories import AdminRepository
 from openwellness_core.domain.models.admin import Admin as AdminEntity
 from openwellness_core.domain.models.admin import AdminUser
 
+from ..authz.engine import Access, authorize
 from ..common.handlers import (
-    apply_patch,
     not_found,
     serialize_many,
     serialize_one,
 )
 from ..common.pagination import PageParams, page_params, paginate
 from ..deps.container import container_dep
-from ..deps.principal import Principal, get_principal
 from ..schemas.admin import (
     Admin,
     AdminCreate,
@@ -39,16 +38,16 @@ def build_router() -> APIRouter:
     router = APIRouter(prefix=f"/{_COLLECTION}", tags=[_COLLECTION])
     repo_dep = container_dep("admin")
 
-    def _fetch(id_: str, repo: Any) -> Any:
+    def _fetch(id_: str, repo: Any, access: Access) -> Any:
         entity = repo.get_by_id(id_)
         if entity is None:
             not_found(_COLLECTION, id_)
-        return entity
+        return access.check_record(entity)
 
     @router.post("", status_code=201, response_model=Admin)
     def create(
         body: AdminCreate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("admin", "create")),
         repo: AdminRepository = Depends(repo_dep),
     ) -> Any:
         entity = AdminEntity(
@@ -60,17 +59,23 @@ def build_router() -> APIRouter:
         return serialize_one(repo.create(entity), Admin, collection=_COLLECTION)
 
     @router.get("/{admin}", response_model=Admin)
-    def get(admin: str, repo: AdminRepository = Depends(repo_dep)) -> Any:
-        return serialize_one(_fetch(admin, repo), Admin, collection=_COLLECTION)
+    def get(
+        admin: str,
+        access: Access = Depends(authorize("admin", "get")),
+        repo: AdminRepository = Depends(repo_dep),
+    ) -> Any:
+        return serialize_one(
+            _fetch(admin, repo, access), Admin, collection=_COLLECTION
+        )
 
     @router.patch("/{admin}", response_model=Admin)
     def patch(
         admin: str,
         body: AdminUpdate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("admin", "patch")),
         repo: AdminRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(admin, repo)
+        entity = _fetch(admin, repo, access)
         data = body.model_dump(exclude_unset=True)
         if "user" in data and data["user"] is not None:
             data["user"] = _to_admin_user(body.user)
@@ -80,29 +85,42 @@ def build_router() -> APIRouter:
         return serialize_one(repo.save(entity), Admin, collection=_COLLECTION)
 
     @router.delete("/{admin}", status_code=204)
-    def delete(admin: str, repo: AdminRepository = Depends(repo_dep)) -> None:
-        _fetch(admin, repo)
+    def delete(
+        admin: str,
+        access: Access = Depends(authorize("admin", "delete")),
+        repo: AdminRepository = Depends(repo_dep),
+    ) -> None:
+        _fetch(admin, repo, access)
         repo.archive(admin)
         return None
 
     @router.post("/{admin}:undelete", response_model=Admin)
-    def undelete(admin: str, repo: AdminRepository = Depends(repo_dep)) -> Any:
-        entity = _fetch(admin, repo)
+    def undelete(
+        admin: str,
+        access: Access = Depends(authorize("admin", "undelete")),
+        repo: AdminRepository = Depends(repo_dep),
+    ) -> Any:
+        entity = _fetch(admin, repo, access)
         repo.unarchive(admin)
         return serialize_one(entity, Admin, collection=_COLLECTION)
 
     @router.post("/{admin}:purge", status_code=204)
-    def purge(admin: str, repo: AdminRepository = Depends(repo_dep)) -> None:
-        _fetch(admin, repo)
+    def purge(
+        admin: str,
+        access: Access = Depends(authorize("admin", "purge")),
+        repo: AdminRepository = Depends(repo_dep),
+    ) -> None:
+        _fetch(admin, repo, access)
         repo.delete(admin)
         return None
 
     @router.get("", response_model=AdminList)
     def list_items(
         params: PageParams = Depends(page_params),
+        access: Access = Depends(authorize("admin", "list")),
         repo: AdminRepository = Depends(repo_dep),
     ) -> Any:
-        items = repo.list_all()
+        items = access.scope_list(repo.list_all())
         window, next_token = paginate(items, params)
         rows = serialize_many(window, Admin, collection=_COLLECTION)
         return {"admins": rows, "nextPageToken": next_token}

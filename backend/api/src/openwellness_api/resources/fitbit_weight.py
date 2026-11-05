@@ -9,19 +9,18 @@ from fastapi import APIRouter, Depends, Query
 from openwellness_core.application.repositories import FitbitWeightRepository
 from openwellness_core.domain.models.fitbit_weight import FitbitWeight as FitbitWeightEntity
 
+from ..authz.engine import Access, authorize
 from ..common.handlers import (
     apply_patch,
     check_parent,
     not_found,
     serialize_many,
     serialize_one,
-    stamp_audit,
 )
 from ..common.pagination import PageParams, page_params, paginate
 from ..common.resource_name import format_name
 from ..common.time_range import parse_str, resolve_time_range
 from ..deps.container import container_dep
-from ..deps.principal import Principal, get_principal
 from ..schemas.fitbit_weight import (
     FitbitWeight,
     FitbitWeightCreate,
@@ -43,25 +42,25 @@ def build_router() -> APIRouter:
     )
     repo_dep = container_dep("fitbit_weight")
 
-    def _fetch(user: str, id_: str, repo: Any) -> Any:
+    def _fetch(user: str, id_: str, repo: Any, access: Access) -> Any:
         entity = repo.get_by_id(id_)
         if entity is None:
             not_found(_COLLECTION, id_, parent=_parent_name(user))
-        return check_parent(
-            entity, parent_id=user, collection=_COLLECTION, parent=_PARENT
+        return access.check_record(
+            check_parent(
+                entity, parent_id=user, collection=_COLLECTION, parent=_PARENT
+            )
         )
 
     @router.post("", status_code=201, response_model=FitbitWeight)
     def create(
         user: str,
         body: FitbitWeightCreate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("fitbit_weight", "create")),
         repo: FitbitWeightRepository = Depends(repo_dep),
     ) -> Any:
-        payload = stamp_audit(
-            body.model_dump(exclude_unset=False),
-            parent_id=user,
-            principal=principal,
+        payload = access.stamp_create(
+            body.model_dump(exclude_unset=False), parent_id=user
         )
         return serialize_one(
             repo.create(FitbitWeightEntity(**payload)),
@@ -72,10 +71,13 @@ def build_router() -> APIRouter:
 
     @router.get("/{fitbit_weight}", response_model=FitbitWeight)
     def get(
-        user: str, fitbit_weight: str, repo: FitbitWeightRepository = Depends(repo_dep)
+        user: str,
+        fitbit_weight: str,
+        access: Access = Depends(authorize("fitbit_weight", "get")),
+        repo: FitbitWeightRepository = Depends(repo_dep),
     ) -> Any:
         return serialize_one(
-            _fetch(user, fitbit_weight, repo),
+            _fetch(user, fitbit_weight, repo, access),
             FitbitWeight,
             collection=_COLLECTION,
             parent=_parent_name(user),
@@ -86,11 +88,11 @@ def build_router() -> APIRouter:
         user: str,
         fitbit_weight: str,
         body: FitbitWeightUpdate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("fitbit_weight", "patch")),
         repo: FitbitWeightRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(user, fitbit_weight, repo)
-        apply_patch(entity, body, principal=principal)
+        entity = _fetch(user, fitbit_weight, repo, access)
+        apply_patch(entity, body, principal=access.principal)
         return serialize_one(
             repo.save(entity),
             FitbitWeight,
@@ -100,17 +102,23 @@ def build_router() -> APIRouter:
 
     @router.delete("/{fitbit_weight}", status_code=204)
     def delete(
-        user: str, fitbit_weight: str, repo: FitbitWeightRepository = Depends(repo_dep)
+        user: str,
+        fitbit_weight: str,
+        access: Access = Depends(authorize("fitbit_weight", "delete")),
+        repo: FitbitWeightRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(user, fitbit_weight, repo)
+        _fetch(user, fitbit_weight, repo, access)
         repo.archive(fitbit_weight)
         return None
 
     @router.post("/{fitbit_weight}:undelete", response_model=FitbitWeight)
     def undelete(
-        user: str, fitbit_weight: str, repo: FitbitWeightRepository = Depends(repo_dep)
+        user: str,
+        fitbit_weight: str,
+        access: Access = Depends(authorize("fitbit_weight", "undelete")),
+        repo: FitbitWeightRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(user, fitbit_weight, repo)
+        entity = _fetch(user, fitbit_weight, repo, access)
         repo.unarchive(fitbit_weight)
         return serialize_one(
             entity,
@@ -121,9 +129,12 @@ def build_router() -> APIRouter:
 
     @router.post("/{fitbit_weight}:purge", status_code=204)
     def purge(
-        user: str, fitbit_weight: str, repo: FitbitWeightRepository = Depends(repo_dep)
+        user: str,
+        fitbit_weight: str,
+        access: Access = Depends(authorize("fitbit_weight", "purge")),
+        repo: FitbitWeightRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(user, fitbit_weight, repo)
+        _fetch(user, fitbit_weight, repo, access)
         repo.delete(fitbit_weight)
         return None
 
@@ -133,6 +144,7 @@ def build_router() -> APIRouter:
         start_time: str | None = Query(default=None, alias="startTime"),
         end_time: str | None = Query(default=None, alias="endTime"),
         params: PageParams = Depends(page_params),
+        access: Access = Depends(authorize("fitbit_weight", "list")),
         repo: FitbitWeightRepository = Depends(repo_dep),
     ) -> Any:
         rng = resolve_time_range(
@@ -144,7 +156,9 @@ def build_router() -> APIRouter:
             default_start="1970-01-01",
             default_end="2100-01-01",
         )
-        items = repo.get_for_owner_between(user, rng.start, rng.end)
+        items = access.scope_list(
+            repo.get_for_owner_between(user, rng.start, rng.end)
+        )
         window, next_token = paginate(items, params)
         rows = serialize_many(
             window,

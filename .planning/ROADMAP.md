@@ -13,7 +13,7 @@ The work starts by settling the ground every later phase stands on: CI on every 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundations & Architecture Decisions** - CI on every PR, settings consolidated in `core` with `.env` loading, datastore-neutral ports, honest repository errors, and the ADRs later phases build on (completed 2026-10-30)
-- [ ] **Phase 2: Route Authentication & Authorization** - Deny-by-default bearer auth on every `/v1` route, owner binding, admin/coach role gates, and audit fields taken only from the verified token
+- [ ] **Phase 2: Route Authentication & Authorization** - Deny-by-default bearer auth on every `/v1` route, owner binding, admin role gates, study-scoped coach access, and audit fields taken only from the verified token
 - [ ] **Phase 3: Token Signing & Refresh Hardening** - Asymmetric `kid`-signed access tokens with a published JWKS, and a refresh grace window that survives concurrent clients
 - [ ] **Phase 4: Postgres Foundation & Auth on Postgres** - Alembic migrations with a one-shot `migrate`, a generic Postgres repository proven by a shared contract suite, and OTP login on Postgres
 - [ ] **Phase 5: All Entities on Postgres by Default** - Postgres adapters for every persisted port, `DATASTORE_BACKEND` selection with Postgres as default, legacy Couchbase/Mongo behind a flag
@@ -70,12 +70,37 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. An anonymous request to any `/v1` route other than `/v1/auth:*` and `/healthz` returns 401, proven by a test that enumerates every registered route, and the `enforce_principal` flag no longer exists
   2. A participant can read and write resources under their own `{user}`, while another user's resources return 404, including when reached through `filter=`
-  3. A non-admin gets 403 on admin resources and the user list, and a participant gets 403 on coach-facing endpoints that coaches and admins can use; a coach reads or writes participant data only for participants in studies listed in their coach_studies claim, and gets 404 for any other study
+  3. A non-admin gets 403 on admin resources and the user list, and a participant gets 403 on coach-facing endpoints that coaches and admins can use; a coach reads or writes participant data only for participants in studies listed in their coach_studies claim, and gets 404 for any other study, except that an owner-scoped list for an out-of-study participant with no records in the requested range answers an empty 200 and exposes no data (D-08)
   4. Audit fields such as `updated_by` record the token's identity even when a request sends a forged `X-Principal-Id` header
-  5. A coach can sign in and work in the dashboard, and a participant can sign in and use the mobile app, end to end against the enforced API
-**Plans**: TBD
+  5. A coach can sign in and work in the dashboard, and a participant can sign in and use the mobile app, end to end against the enforced API (the dashboard is proven by sign-in, session restore and sign-out; D-11 deviation, developer-accepted 2026-11-04)
+**Plans**: 12/12 plans executed
+
+Plans:
+**Wave 1**
+- [x] 02-01-PLAN.md — Staff sign-in and the `coach_studies` claim; refresh re-derives claims and re-checks eligibility
+- [x] 02-02-PLAN.md — POLICY table proven equal to ADR 0007 cell by cell; ADR 0007 amendment
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 02-03-PLAN.md — Strict bearer floor before body parsing on every resource route; permissive mode deleted; suites on real tokens
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 02-04-PLAN.md — Policy engine, `weight` fully enforced; audit stamping, patch denylist, policy matrix
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 02-05-PLAN.md — Participant-data routers under the engine, with scope before `filter=` on `goal`
+- [x] 02-06-PLAN.md — Coach-authored and server-ingested routers under the engine; coach write check over HTTP
+- [x] 02-07-PLAN.md — Study-parented routers under the engine; `:lookup` scoped and byte-identical
+- [x] 02-08-PLAN.md — Admin-only routers under the engine; duplicate-email oracle closed
+- [x] 02-09-PLAN.md — Membership, device and Fitbit routers under the engine; Fitbit tokens never reach a non-admin
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 02-10-PLAN.md — Route enumeration on the real app, docs off by default, audit and mass-assignment sweep, corrected docs
+- [x] 02-11-PLAN.md — Mobile gate before token save; bearer proven on a non-auth path (stops until JDK 21 and the Android SDK are installed)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 02-12-PLAN.md — Dev seed, per-role CI flow, D-10 evidence, manual UAT, roadmap and blocker updates
 **UI hint**: no
-**Research flag**: Coach authorization is decided: study-scoped through the coach_studies claim (D-02, ADRs 0006 and 0007), and Phase 2 implements the ADR 0007 table. Run a logging-only pass first to find dashboard or mobile calls that are currently unauthenticated, then switch to enforcement.
+**Research flag**: Coach authorization is decided: study-scoped through the coach_studies claim (D-02, ADRs 0006 and 0007), and Phase 2 implements the ADR 0007 table. D-10 replaced that observation pass with a recorded grep of dashboard and mobile call sites (see 02-MANUAL-UAT.md): the clients call only auth:* today, so enforcement lands in one step and no permissive mode exists.
 
 ### Phase 3: Token Signing & Refresh Hardening
 **Goal**: Other services can verify access tokens through a published JWKS without sharing any secret, and participants stay logged in when two clients refresh at the same moment
@@ -177,7 +202,7 @@ Plans:
   5. A configuration reference generated from the settings classes lists every variable, and CI fails when a setting changes without the reference being regenerated
 **Plans**: TBD
 **UI hint**: no
-**Research flag**: Standard patterns (compose healthchecks, profiles, secret handling); the PowerSync compose sketch already exists in the research STACK.md.
+**Research flag**: Standard patterns (compose healthchecks, profiles, secret handling); the PowerSync compose sketch already exists in the research STACK.md. Set API_ENABLE_DOCS off for production: .env.example turns it on for local work (Phase 2 D-09).
 
 ### Phase 11: Operator Tooling & Verified Quickstart
 **Goal**: Someone new to the codebase follows the README on a fresh clone to an instance with real secrets and a first admin they can log in as, and CI proves that path keeps working
@@ -203,7 +228,7 @@ Plans:
   5. A compliance-responsibilities document and hardening checklist explain what the operator must do in HIPAA/IRB contexts without claiming compliance
 **Plans**: TBD
 **UI hint**: no
-**Research flag**: The compliance and backup posture is based on common practice, not sourced references; review the compliance document from an institutional security/IRB perspective before publishing. Include a WAL soak test (stop PowerSync and watch slot retention stay within the cap). This phase is the auth hard gate: it starts only after all AUTH-* requirements are complete.
+**Research flag**: The compliance and backup posture is based on common practice, not sourced references; review the compliance document from an institutional security/IRB perspective before publishing. Include a WAL soak test (stop PowerSync and watch slot retention stay within the cap). This phase is the auth hard gate: it starts only after all AUTH-* requirements are complete. Set API_ENABLE_DOCS off for production: .env.example turns it on for local work (Phase 2 D-09).
 
 ## Progress
 
@@ -215,7 +240,7 @@ Declared dependencies allow parallel streams. Phase 4 waits for Phase 3 so the P
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundations & Architecture Decisions | 11/11 | Complete    | 2026-10-30 |
-| 2. Route Authentication & Authorization | 0/TBD | Not started | - |
+| 2. Route Authentication & Authorization | 12/12 | In Progress | - |
 | 3. Token Signing & Refresh Hardening | 0/TBD | Not started | - |
 | 4. Postgres Foundation & Auth on Postgres | 0/TBD | Not started | - |
 | 5. All Entities on Postgres by Default | 0/TBD | Not started | - |

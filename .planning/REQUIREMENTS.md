@@ -21,11 +21,11 @@
 - [ ] **AUTH-02**: A test enumerates every registered route and asserts anonymous access returns 401
 - [ ] **AUTH-03**: A participant can only read and write resources under their own `{user}`; another user's resources return 404 (including via `filter=`)
 - [ ] **AUTH-04**: Admin resources and the user list require the `admin` role (403 otherwise)
-- [ ] **AUTH-05**: Coach-facing endpoints require the `coach` or `admin` role, and a coach reads or writes only records whose study id is in their `coach_studies` claim, with every write also checked against the target owner's Participant record (ADRs 0006 and 0007); a record or participant in any other study returns 404; this absorbs the former v2 AUTHZ-01 (D-02)
+- [ ] **AUTH-05**: Coach-facing endpoints require the `coach` or `admin` role, and a coach reads or writes only records whose study id is in their `coach_studies` claim, with every write also checked against the target owner's Participant record (ADRs 0006 and 0007); a record or participant in any other study returns 404, except that a coach's owner-scoped list for an out-of-study participant with no records in the requested range answers an empty 200 and exposes no data (Phase 2 D-08); this absorbs the former v2 AUTHZ-01 (D-02)
 - [ ] **AUTH-06**: Audit fields (`updated_by`, etc.) come only from the verified token; the `X-Principal-Id` header is ignored
 - [ ] **AUTH-07**: Access tokens carry a `kid` header and are signed with an asymmetric key (EdDSA default); the API publishes a JWKS endpoint
 - [ ] **AUTH-08**: Concurrent refresh with the same refresh token within a short grace window does not trigger reuse-detection logout
-- [ ] **AUTH-09**: Dashboard and mobile clients keep working end to end against the enforced API
+- [ ] **AUTH-09**: Dashboard and mobile clients keep working end to end against the enforced API (the dashboard is proven by sign-in, session restore and sign-out; D-11 deviation, developer-accepted 2026-11-04)
 
 ### Postgres Datastore
 
@@ -128,15 +128,15 @@
 | FOUND-05 | Phase 1 | Complete |
 | FOUND-06 | Phase 1 | Complete |
 | FOUND-07 | Phase 1 | Complete |
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
-| AUTH-04 | Phase 2 | Pending |
-| AUTH-05 | Phase 2 | Pending |
-| AUTH-06 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Gaps Found |
+| AUTH-02 | Phase 2 | Gaps Found |
+| AUTH-03 | Phase 2 | Gaps Found |
+| AUTH-04 | Phase 2 | Gaps Found |
+| AUTH-05 | Phase 2 | Gaps Found |
+| AUTH-06 | Phase 2 | Gaps Found |
 | AUTH-07 | Phase 3 | Pending |
 | AUTH-08 | Phase 3 | Pending |
-| AUTH-09 | Phase 2 | Pending |
+| AUTH-09 | Phase 2 | Gaps Found |
 | PG-01 | Phase 5 | Pending |
 | PG-02 | Phase 4 | Pending |
 | PG-03 | Phase 5 | Pending |

@@ -1,13 +1,24 @@
 """Round-trip the Goal discriminated union + AIP-160 ``filter=kind=N``."""
 
+import pytest
+
+from openwellness_core.application.repositories import ParticipantRepository
+from openwellness_core.domain.models.participant import Participant
+
+
+@pytest.fixture(autouse=True)
+def _owners(fakes) -> None:
+    """Study binding needs a Participant for each owner id these tests use."""
+    for owner in ("u-1", "u-2", "u-3"):
+        fakes[ParticipantRepository].store[owner] = Participant(
+            id=owner, study_id="s-1", is_active=True
+        )
+
 
 def test_create_weekly_and_daily_goals(client) -> None:
-    headers = {"X-Principal-Id": "tester"}
-
     r = client.post(
         "/v1/users/u-1/goals",
         json={"kind": 0, "startDate": 1.0},
-        headers=headers,
     )
     assert r.status_code == 201, r.text
     weekly = r.json()
@@ -17,7 +28,6 @@ def test_create_weekly_and_daily_goals(client) -> None:
     r = client.post(
         "/v1/users/u-1/goals",
         json={"kind": 1, "startDate": 2.0},
-        headers=headers,
     )
     assert r.status_code == 201, r.text
     daily = r.json()
@@ -25,7 +35,6 @@ def test_create_weekly_and_daily_goals(client) -> None:
     r = client.post(
         "/v1/users/u-1/goals",
         json={"kind": 2, "weight": 150.0, "calories": 1800.0},
-        headers=headers,
     )
     assert r.status_code == 201, r.text
     legacy = r.json()
@@ -45,11 +54,9 @@ def test_create_weekly_and_daily_goals(client) -> None:
 
 
 def test_filter_rejects_unknown_field(client) -> None:
-    headers = {"X-Principal-Id": "tester"}
     client.post(
         "/v1/users/u-2/goals",
         json={"kind": 0, "startDate": 1.0},
-        headers=headers,
     )
     r = client.get("/v1/users/u-2/goals", params={"filter": "weight=10"})
     assert r.status_code == 400

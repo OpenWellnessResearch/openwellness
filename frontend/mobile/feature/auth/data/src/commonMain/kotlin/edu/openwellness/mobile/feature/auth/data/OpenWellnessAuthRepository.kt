@@ -96,12 +96,20 @@ internal class OpenWellnessAuthRepository(
     ): Result<AuthSession, AuthError> = when (result) {
         is Result.Success -> {
             val session = result.data.toAuthSession()
-            tokenStorage.saveTokens(
-                session.tokens.accessToken,
-                session.tokens.refreshToken,
-            )
-            invalidateBearerCache()
-            Result.Success(session)
+            if (session.principal.participant.isNullOrBlank()) {
+                // UX gate only (the API is the security boundary). It runs before
+                // the save so a staff token never reaches disk; the revoke is
+                // best-effort so no live server session is left behind.
+                remote.revokeCurrent(session.tokens.refreshToken)
+                Result.Error(AuthError.NotParticipant)
+            } else {
+                tokenStorage.saveTokens(
+                    session.tokens.accessToken,
+                    session.tokens.refreshToken,
+                )
+                invalidateBearerCache()
+                Result.Success(session)
+            }
         }
         is Result.Error -> Result.Error(result.error.toAuthError())
     }

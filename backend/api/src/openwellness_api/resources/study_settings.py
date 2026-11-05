@@ -10,19 +10,18 @@ from fastapi import APIRouter, Depends, Query
 from openwellness_core.application.repositories import StudySettingsRepository
 from openwellness_core.domain.models.study_settings import StudySettings as StudySettingsEntity
 
+from ..authz.engine import Access, authorize
 from ..common.handlers import (
     apply_patch,
     check_parent,
     not_found,
     serialize_many,
     serialize_one,
-    stamp_audit,
 )
 from ..common.pagination import PageParams, page_params, paginate
 from ..common.resource_name import format_name
 from ..common.time_range import parse_arrow, resolve_time_range
 from ..deps.container import container_dep
-from ..deps.principal import Principal, get_principal
 from ..schemas.study_settings import (
     StudySettings,
     StudySettingsCreate,
@@ -44,25 +43,25 @@ def build_router() -> APIRouter:
     )
     repo_dep = container_dep("study_settings")
 
-    def _fetch(study: str, id_: str, repo: Any) -> Any:
+    def _fetch(study: str, id_: str, repo: Any, access: Access) -> Any:
         entity = repo.get_by_id(id_)
         if entity is None:
             not_found(_COLLECTION, id_, parent=_parent_name(study))
-        return check_parent(
-            entity, parent_id=study, collection=_COLLECTION, parent=_PARENT
+        return access.check_record(
+            check_parent(
+                entity, parent_id=study, collection=_COLLECTION, parent=_PARENT
+            )
         )
 
     @router.post("", status_code=201, response_model=StudySettings)
     def create(
         study: str,
         body: StudySettingsCreate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("study_settings", "create")),
         repo: StudySettingsRepository = Depends(repo_dep),
     ) -> Any:
-        payload = stamp_audit(
-            body.model_dump(exclude_unset=False),
-            parent_id=study,
-            principal=principal,
+        payload = access.stamp_create(
+            body.model_dump(exclude_unset=False), parent_id=study
         )
         return serialize_one(
             repo.create(StudySettingsEntity(**payload)),
@@ -73,10 +72,13 @@ def build_router() -> APIRouter:
 
     @router.get("/{study_settings}", response_model=StudySettings)
     def get(
-        study: str, study_settings: str, repo: StudySettingsRepository = Depends(repo_dep)
+        study: str,
+        study_settings: str,
+        access: Access = Depends(authorize("study_settings", "get")),
+        repo: StudySettingsRepository = Depends(repo_dep),
     ) -> Any:
         return serialize_one(
-            _fetch(study, study_settings, repo),
+            _fetch(study, study_settings, repo, access),
             StudySettings,
             collection=_COLLECTION,
             parent=_parent_name(study),
@@ -87,11 +89,11 @@ def build_router() -> APIRouter:
         study: str,
         study_settings: str,
         body: StudySettingsUpdate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("study_settings", "patch")),
         repo: StudySettingsRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(study, study_settings, repo)
-        apply_patch(entity, body, principal=principal)
+        entity = _fetch(study, study_settings, repo, access)
+        apply_patch(entity, body, principal=access.principal)
         return serialize_one(
             repo.save(entity),
             StudySettings,
@@ -101,17 +103,23 @@ def build_router() -> APIRouter:
 
     @router.delete("/{study_settings}", status_code=204)
     def delete(
-        study: str, study_settings: str, repo: StudySettingsRepository = Depends(repo_dep)
+        study: str,
+        study_settings: str,
+        access: Access = Depends(authorize("study_settings", "delete")),
+        repo: StudySettingsRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(study, study_settings, repo)
+        _fetch(study, study_settings, repo, access)
         repo.archive(study_settings)
         return None
 
     @router.post("/{study_settings}:undelete", response_model=StudySettings)
     def undelete(
-        study: str, study_settings: str, repo: StudySettingsRepository = Depends(repo_dep)
+        study: str,
+        study_settings: str,
+        access: Access = Depends(authorize("study_settings", "undelete")),
+        repo: StudySettingsRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(study, study_settings, repo)
+        entity = _fetch(study, study_settings, repo, access)
         repo.unarchive(study_settings)
         return serialize_one(
             entity,
@@ -122,9 +130,12 @@ def build_router() -> APIRouter:
 
     @router.post("/{study_settings}:purge", status_code=204)
     def purge(
-        study: str, study_settings: str, repo: StudySettingsRepository = Depends(repo_dep)
+        study: str,
+        study_settings: str,
+        access: Access = Depends(authorize("study_settings", "purge")),
+        repo: StudySettingsRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(study, study_settings, repo)
+        _fetch(study, study_settings, repo, access)
         repo.delete(study_settings)
         return None
 
@@ -134,6 +145,7 @@ def build_router() -> APIRouter:
         start_time: str | None = Query(default=None, alias="startTime"),
         end_time: str | None = Query(default=None, alias="endTime"),
         params: PageParams = Depends(page_params),
+        access: Access = Depends(authorize("study_settings", "list")),
         repo: StudySettingsRepository = Depends(repo_dep),
     ) -> Any:
         rng = resolve_time_range(
@@ -145,7 +157,7 @@ def build_router() -> APIRouter:
             default_start=arrow.Arrow(1970, 1, 1),
             default_end=arrow.Arrow(2100, 1, 1),
         )
-        items = repo.get_for_owner_between(study, rng.start, rng.end)
+        items = access.scope_list(repo.get_for_owner_between(study, rng.start, rng.end))
         window, next_token = paginate(items, params)
         rows = serialize_many(
             window,

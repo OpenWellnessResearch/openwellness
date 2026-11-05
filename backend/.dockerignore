@@ -10,6 +10,9 @@
 # Tests are not needed in the image
 **/tests
 
+# Dev-only scripts (the dev seed) must never ship in an image
+api/scripts
+
 # Secrets / local env files
 .env
 .env.*

@@ -15,19 +15,18 @@ from fastapi import APIRouter, Depends, Query
 from openwellness_core.application.repositories import WeightRepository
 from openwellness_core.domain.models.weight import Weight as WeightEntity
 
+from ..authz.engine import Access, authorize
 from ..common.handlers import (
     apply_patch,
     check_parent,
     not_found,
     serialize_many,
     serialize_one,
-    stamp_audit,
 )
 from ..common.pagination import PageParams, page_params, paginate
 from ..common.resource_name import format_name
 from ..common.time_range import parse_arrow, resolve_time_range
 from ..deps.container import container_dep
-from ..deps.principal import Principal, get_principal
 from ..schemas.weight import Weight, WeightCreate, WeightList, WeightUpdate
 
 _COLLECTION = "weights"
@@ -44,25 +43,25 @@ def build_router() -> APIRouter:
     )
     repo_dep = container_dep("weight")
 
-    def _fetch(user: str, weight: str, repo: Any) -> Any:
+    def _fetch(user: str, weight: str, repo: Any, access: Access) -> Any:
         entity = repo.get_by_id(weight)
         if entity is None:
             not_found(_COLLECTION, weight, parent=_parent_name(user))
-        return check_parent(
-            entity, parent_id=user, collection=_COLLECTION, parent=_PARENT
+        return access.check_record(
+            check_parent(
+                entity, parent_id=user, collection=_COLLECTION, parent=_PARENT
+            )
         )
 
     @router.post("", status_code=201, response_model=Weight)
     def create_weight(
         user: str,
         body: WeightCreate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("weight", "create")),
         repo: WeightRepository = Depends(repo_dep),
     ) -> Any:
-        payload = stamp_audit(
-            body.model_dump(exclude_unset=False),
-            parent_id=user,
-            principal=principal,
+        payload = access.stamp_create(
+            body.model_dump(exclude_unset=False), parent_id=user
         )
         entity = WeightEntity(**payload)
         return serialize_one(
@@ -74,10 +73,13 @@ def build_router() -> APIRouter:
 
     @router.get("/{weight}", response_model=Weight)
     def get_weight(
-        user: str, weight: str, repo: WeightRepository = Depends(repo_dep)
+        user: str,
+        weight: str,
+        access: Access = Depends(authorize("weight", "get")),
+        repo: WeightRepository = Depends(repo_dep),
     ) -> Any:
         return serialize_one(
-            _fetch(user, weight, repo),
+            _fetch(user, weight, repo, access),
             Weight,
             collection=_COLLECTION,
             parent=_parent_name(user),
@@ -88,11 +90,11 @@ def build_router() -> APIRouter:
         user: str,
         weight: str,
         body: WeightUpdate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("weight", "patch")),
         repo: WeightRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(user, weight, repo)
-        apply_patch(entity, body, principal=principal)
+        entity = _fetch(user, weight, repo, access)
+        apply_patch(entity, body, principal=access.principal)
         return serialize_one(
             repo.save(entity),
             Weight,
@@ -102,17 +104,23 @@ def build_router() -> APIRouter:
 
     @router.delete("/{weight}", status_code=204)
     def delete_weight(
-        user: str, weight: str, repo: WeightRepository = Depends(repo_dep)
+        user: str,
+        weight: str,
+        access: Access = Depends(authorize("weight", "delete")),
+        repo: WeightRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(user, weight, repo)
+        _fetch(user, weight, repo, access)
         repo.archive(weight)
         return None
 
     @router.post("/{weight}:undelete", response_model=Weight)
     def undelete_weight(
-        user: str, weight: str, repo: WeightRepository = Depends(repo_dep)
+        user: str,
+        weight: str,
+        access: Access = Depends(authorize("weight", "undelete")),
+        repo: WeightRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(user, weight, repo)
+        entity = _fetch(user, weight, repo, access)
         repo.unarchive(weight)
         return serialize_one(
             entity, Weight, collection=_COLLECTION, parent=_parent_name(user)
@@ -120,9 +128,12 @@ def build_router() -> APIRouter:
 
     @router.post("/{weight}:purge", status_code=204)
     def purge_weight(
-        user: str, weight: str, repo: WeightRepository = Depends(repo_dep)
+        user: str,
+        weight: str,
+        access: Access = Depends(authorize("weight", "purge")),
+        repo: WeightRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(user, weight, repo)
+        _fetch(user, weight, repo, access)
         repo.delete(weight)
         return None
 
@@ -132,6 +143,7 @@ def build_router() -> APIRouter:
         start_time: str | None = Query(default=None, alias="startTime"),
         end_time: str | None = Query(default=None, alias="endTime"),
         params: PageParams = Depends(page_params),
+        access: Access = Depends(authorize("weight", "list")),
         repo: WeightRepository = Depends(repo_dep),
     ) -> Any:
         rng = resolve_time_range(
@@ -143,7 +155,7 @@ def build_router() -> APIRouter:
             default_start=arrow.Arrow(1970, 1, 1),
             default_end=arrow.Arrow(2100, 1, 1),
         )
-        items = repo.get_for_owner_between(user, rng.start, rng.end)
+        items = access.scope_list(repo.get_for_owner_between(user, rng.start, rng.end))
         window, next_token = paginate(items, params)
         rows = serialize_many(
             window, Weight, collection=_COLLECTION, parent=_parent_name(user)

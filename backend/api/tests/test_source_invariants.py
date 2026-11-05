@@ -71,3 +71,24 @@ def test_mongo_base_repository_has_no_bare_or_broad_except() -> None:
         elif isinstance(node.type, ast.Name) and node.type.id in BROAD:
             hits.append(f"except {node.type.id} at line {node.lineno}")
     assert hits == []
+
+
+REMOVED_LITERALS = ("X-Principal-Id", "enforce_principal", "ENFORCE_PRINCIPAL", "require_principal")
+
+
+def test_no_principal_header_or_permissive_mode_left() -> None:
+    api = BACKEND / "api"
+    files = [*(api / "src").rglob("*.py"), api / "README.md"]
+    hits = [
+        f"{path}: {lit}"
+        for path in files
+        for lit in REMOVED_LITERALS
+        if lit in path.read_text(encoding="utf-8")
+    ]
+    assert hits == []
+
+
+def test_env_example_turns_docs_on_with_a_warning() -> None:
+    lines = (BACKEND.parent / ".env.example").read_text(encoding="utf-8").splitlines()
+    assert "API_ENABLE_DOCS=true" in lines
+    assert any("deployed instance" in line for line in lines)

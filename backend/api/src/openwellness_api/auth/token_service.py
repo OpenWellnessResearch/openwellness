@@ -41,6 +41,7 @@ class AccessClaims:
     jti: str
     iss: str
     aud: str
+    coach_studies: tuple[str, ...] = ()
 
 
 class JwtTokenService:
@@ -63,6 +64,7 @@ class JwtTokenService:
         user_id: str,
         participant: str | None = None,
         roles: Sequence[str] = (),
+        coach_studies: Sequence[str] = (),
     ) -> str:
         """Encode a signed HS256 access JWT for ``user_id``."""
         now = self._clock()
@@ -77,6 +79,7 @@ class JwtTokenService:
             "typ": "access",
             "participant": participant,
             "roles": list(roles),
+            "coach_studies": list(coach_studies),
         }
         return jwt.encode(
             claims, self._settings.jwt_secret, algorithm=self._settings.jwt_alg
@@ -118,6 +121,12 @@ class JwtTokenService:
         if participant is not None and not isinstance(participant, str):
             raise InvalidAccessToken("malformed participant claim")
 
+        raw_studies = payload.get("coach_studies", ())
+        if not isinstance(raw_studies, (list, tuple)) or not all(
+            isinstance(s, str) for s in raw_studies
+        ):
+            raise InvalidAccessToken("malformed coach_studies claim")
+
         return AccessClaims(
             sub=str(payload["sub"]),
             participant=participant,
@@ -125,6 +134,7 @@ class JwtTokenService:
             jti=str(payload.get("jti", "")),
             iss=str(payload["iss"]),
             aud=str(payload["aud"]),
+            coach_studies=tuple(raw_studies),
         )
 
     def new_refresh(self) -> str:

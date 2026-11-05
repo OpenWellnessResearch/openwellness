@@ -23,6 +23,10 @@ import kotlin.test.assertTrue
 
 private const val TOKEN_JSON =
     """{"accessToken":"access-1","tokenType":"Bearer","expiresInSeconds":900,"refreshToken":"refresh-1","principal":{"userId":"u1","participant":"participants/42"}}"""
+private const val STAFF_TOKEN_JSON =
+    """{"accessToken":"access-1","tokenType":"Bearer","expiresInSeconds":900,"refreshToken":"refresh-1","principal":{"userId":"u1","participant":null}}"""
+private const val BLANK_PARTICIPANT_TOKEN_JSON =
+    """{"accessToken":"access-1","tokenType":"Bearer","expiresInSeconds":900,"refreshToken":"refresh-1","principal":{"userId":"u1","participant":""}}"""
 private const val REFRESH_JSON =
     """{"accessToken":"access-2","tokenType":"Bearer","expiresInSeconds":900,"refreshToken":"refresh-2"}"""
 private const val ERROR_400_JSON =
@@ -34,7 +38,7 @@ private const val ERROR_429_WITH_SECS =
 private const val ERROR_429_NO_SECS =
     """{"error":{"code":429,"status":"RESOURCE_EXHAUSTED","message":"Slow down.","details":[]}}"""
 
-private class FakeTokenStorage(
+internal class FakeTokenStorage(
     initialAccess: String? = null,
     initialRefresh: String? = null,
 ) : AuthTokenStorage {
@@ -185,5 +189,60 @@ class OpenWellnessAuthRepositoryTest {
         assertTrue(result is Result.Error)
         assertThat(result.error).isEqualTo(AuthError.Unauthorized)
         assertThat(called).isEqualTo(false)
+    }
+
+    @Test
+    fun verifyLogin_nullParticipant_rejected_noTokensSaved() = runTest {
+        val storage = FakeTokenStorage()
+        val repo = buildRepo(storage, HttpStatusCode.OK, STAFF_TOKEN_JSON)
+
+        val result = repo.verifyLoginCode("coach@example.com", "123456")
+
+        assertTrue(result is Result.Error)
+        assertThat(result.error).isEqualTo(AuthError.NotParticipant)
+        assertThat(storage.getAccessToken()).isNull()
+        assertThat(storage.getRefreshToken()).isNull()
+    }
+
+    @Test
+    fun verifyLogin_nullParticipant_attemptsRevoke() = runTest {
+        val urls = mutableListOf<String>()
+        val repo = buildRepo(FakeTokenStorage(), HttpStatusCode.OK, STAFF_TOKEN_JSON) {
+            urls += it.url.toString()
+        }
+
+        repo.verifyLoginCode("coach@example.com", "123456")
+
+        assertThat(urls).isEqualTo(
+            listOf(
+                "http://test.local/v1/auth:verifyLoginCode",
+                "http://test.local/v1/auth:revokeToken",
+            ),
+        )
+    }
+
+    @Test
+    fun verifyRegistration_nullParticipant_rejected() = runTest {
+        val storage = FakeTokenStorage()
+        val repo = buildRepo(storage, HttpStatusCode.OK, STAFF_TOKEN_JSON)
+
+        val result = repo.verifyRegistrationCode("coach@example.com", "123456")
+
+        assertTrue(result is Result.Error)
+        assertThat(result.error).isEqualTo(AuthError.NotParticipant)
+        assertThat(storage.getAccessToken()).isNull()
+        assertThat(storage.getRefreshToken()).isNull()
+    }
+
+    @Test
+    fun verifyLogin_blankParticipant_rejected() = runTest {
+        val storage = FakeTokenStorage()
+        val repo = buildRepo(storage, HttpStatusCode.OK, BLANK_PARTICIPANT_TOKEN_JSON)
+
+        val result = repo.verifyLoginCode("person@example.com", "123456")
+
+        assertTrue(result is Result.Error)
+        assertThat(result.error).isEqualTo(AuthError.NotParticipant)
+        assertThat(storage.getAccessToken()).isNull()
     }
 }

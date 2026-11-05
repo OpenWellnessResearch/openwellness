@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 
 from openwellness_core.application.repositories import UserRepository
 from openwellness_core.domain.models.user import User as UserEntity
 
+from ..authz.engine import Access, authorize
 from ..common.handlers import (
     apply_patch,
     not_found,
@@ -17,7 +18,6 @@ from ..common.handlers import (
 )
 from ..common.pagination import PageParams, page_params, paginate
 from ..deps.container import container_dep
-from ..deps.principal import Principal, get_principal
 from ..schemas.user import (
     User,
     UserCreate,
@@ -32,16 +32,16 @@ def build_router() -> APIRouter:
     router = APIRouter(prefix=f"/{_COLLECTION}", tags=[_COLLECTION])
     repo_dep = container_dep("user")
 
-    def _fetch(id_: str, repo: Any) -> Any:
+    def _fetch(id_: str, repo: Any, access: Access) -> Any:
         entity = repo.get_by_id(id_)
         if entity is None:
             not_found(_COLLECTION, id_)
-        return entity
+        return access.check_record(entity)
 
     @router.post("", status_code=201, response_model=User)
     def create(
         body: UserCreate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("user", "create")),
         repo: UserRepository = Depends(repo_dep),
     ) -> Any:
         payload = body.model_dump(exclude_unset=False)
@@ -53,55 +53,64 @@ def build_router() -> APIRouter:
 
     @router.get("/{user}", response_model=User)
     def get(
-        user: str, repo: UserRepository = Depends(repo_dep)
+        user: str,
+        access: Access = Depends(authorize("user", "get")),
+        repo: UserRepository = Depends(repo_dep),
     ) -> Any:
         return serialize_one(
-            _fetch(user, repo), User, collection=_COLLECTION
+            _fetch(user, repo, access), User, collection=_COLLECTION
         )
 
     @router.patch("/{user}", response_model=User)
     def patch(
         user: str,
         body: UserUpdate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("user", "patch")),
         repo: UserRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(user, repo)
-        apply_patch(entity, body, principal=principal)
+        entity = _fetch(user, repo, access)
+        apply_patch(entity, body, principal=access.principal)
         return serialize_one(
             repo.save(entity), User, collection=_COLLECTION
         )
 
     @router.delete("/{user}", status_code=204)
     def delete(
-        user: str, repo: UserRepository = Depends(repo_dep)
+        user: str,
+        access: Access = Depends(authorize("user", "delete")),
+        repo: UserRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(user, repo)
+        _fetch(user, repo, access)
         repo.archive(user)
         return None
 
     @router.post("/{user}:undelete", response_model=User)
     def undelete(
-        user: str, repo: UserRepository = Depends(repo_dep)
+        user: str,
+        access: Access = Depends(authorize("user", "undelete")),
+        repo: UserRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(user, repo)
+        entity = _fetch(user, repo, access)
         repo.unarchive(user)
         return serialize_one(entity, User, collection=_COLLECTION)
 
     @router.post("/{user}:purge", status_code=204)
     def purge(
-        user: str, repo: UserRepository = Depends(repo_dep)
+        user: str,
+        access: Access = Depends(authorize("user", "purge")),
+        repo: UserRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(user, repo)
+        _fetch(user, repo, access)
         repo.delete(user)
         return None
 
     @router.get("", response_model=UserList)
     def list_items(
         params: PageParams = Depends(page_params),
+        access: Access = Depends(authorize("user", "list")),
         repo: UserRepository = Depends(repo_dep),
     ) -> Any:
-        items = repo.list_all()
+        items = access.scope_list(repo.list_all())
         window, next_token = paginate(items, params)
         rows = serialize_many(window, User, collection=_COLLECTION)
         return {"users": rows, "nextPageToken": next_token}

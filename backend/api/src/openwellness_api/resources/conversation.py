@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends
 from openwellness_core.application.repositories import ConversationRepository
 from openwellness_core.domain.models.conversation import Conversation as ConversationEntity
 
+from ..authz.engine import Access, authorize
 from ..common.handlers import (
     apply_patch,
     not_found,
@@ -17,7 +18,6 @@ from ..common.handlers import (
 )
 from ..common.pagination import PageParams, page_params, paginate
 from ..deps.container import container_dep
-from ..deps.principal import Principal, get_principal
 from ..schemas.conversation import (
     Conversation,
     ConversationCreate,
@@ -33,72 +33,84 @@ def build_router() -> APIRouter:
     router = APIRouter(prefix=f"/{_COLLECTION}", tags=[_COLLECTION])
     repo_dep = container_dep("conversation")
 
-    def _fetch(id_: str, repo: Any) -> Any:
+    def _fetch(id_: str, repo: Any, access: Access) -> Any:
         entity = repo.get_by_id(id_)
         if entity is None:
             not_found(_COLLECTION, id_)
-        return entity
+        return access.check_record(entity)
 
     @router.post("", status_code=201, response_model=Conversation)
     def create(
         body: ConversationCreate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("conversation", "create")),
         repo: ConversationRepository = Depends(repo_dep),
     ) -> Any:
-        entity = ConversationEntity(**body.model_dump(exclude_unset=False))
+        # The body's owner stays; updated_by comes from the token (AUTH-06).
+        entity = ConversationEntity(
+            **access.stamp_create(body.model_dump(exclude_unset=False), parent_id=None)
+        )
         return serialize_one(repo.create(entity), Conversation, collection=_COLLECTION)
 
     @router.get("/{conversation}", response_model=Conversation)
     def get(
-        conversation: str, repo: ConversationRepository = Depends(repo_dep)
+        conversation: str,
+        access: Access = Depends(authorize("conversation", "get")),
+        repo: ConversationRepository = Depends(repo_dep),
     ) -> Any:
         return serialize_one(
-            _fetch(conversation, repo), Conversation, collection=_COLLECTION
+            _fetch(conversation, repo, access), Conversation, collection=_COLLECTION
         )
 
     @router.patch("/{conversation}", response_model=Conversation)
     def patch(
         conversation: str,
         body: ConversationUpdate,
-        principal: Principal = Depends(get_principal),
+        access: Access = Depends(authorize("conversation", "patch")),
         repo: ConversationRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(conversation, repo)
-        apply_patch(entity, body, principal=principal)
+        entity = _fetch(conversation, repo, access)
+        apply_patch(entity, body, principal=access.principal)
         return serialize_one(
             repo.save(entity), Conversation, collection=_COLLECTION
         )
 
     @router.delete("/{conversation}", status_code=204)
     def delete(
-        conversation: str, repo: ConversationRepository = Depends(repo_dep)
+        conversation: str,
+        access: Access = Depends(authorize("conversation", "delete")),
+        repo: ConversationRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(conversation, repo)
+        _fetch(conversation, repo, access)
         repo.archive(conversation)
         return None
 
     @router.post("/{conversation}:undelete", response_model=Conversation)
     def undelete(
-        conversation: str, repo: ConversationRepository = Depends(repo_dep)
+        conversation: str,
+        access: Access = Depends(authorize("conversation", "undelete")),
+        repo: ConversationRepository = Depends(repo_dep),
     ) -> Any:
-        entity = _fetch(conversation, repo)
+        entity = _fetch(conversation, repo, access)
         repo.unarchive(conversation)
         return serialize_one(entity, Conversation, collection=_COLLECTION)
 
     @router.post("/{conversation}:purge", status_code=204)
     def purge(
-        conversation: str, repo: ConversationRepository = Depends(repo_dep)
+        conversation: str,
+        access: Access = Depends(authorize("conversation", "purge")),
+        repo: ConversationRepository = Depends(repo_dep),
     ) -> None:
-        _fetch(conversation, repo)
+        _fetch(conversation, repo, access)
         repo.delete(conversation)
         return None
 
     @router.get("", response_model=ConversationList)
     def list_items(
         params: PageParams = Depends(page_params),
+        access: Access = Depends(authorize("conversation", "list")),
         repo: ConversationRepository = Depends(repo_dep),
     ) -> Any:
-        items = repo.list_all()
+        items = access.scope_list(repo.list_all())
         window, next_token = paginate(items, params)
         rows = serialize_many(window, Conversation, collection=_COLLECTION)
         return {"conversations": rows, "nextPageToken": next_token}
@@ -107,6 +119,8 @@ def build_router() -> APIRouter:
     def search(
         body: ConversationSearchBody,
         params: PageParams = Depends(page_params),
+        # A4: :search is op list, so the filter below cannot widen what a caller sees.
+        access: Access = Depends(authorize("conversation", "list")),
         repo: ConversationRepository = Depends(repo_dep),
     ) -> Any:
         type_map = {
@@ -118,7 +132,7 @@ def build_router() -> APIRouter:
             ConversationEntity.Filter(type=type_map[f.type], val=f.val)
             for f in body.filters
         ]
-        results = repo.get_for_filters(filters)
+        results = access.scope_list(repo.get_for_filters(filters))
         window, next_token = paginate(results, params)
         rows = serialize_many(window, Conversation, collection=_COLLECTION)
         return {"conversations": rows, "nextPageToken": next_token}

@@ -1,20 +1,32 @@
 """Owner-scoped CRUD + owner-mismatch behavior for Weights (AIP wire format)."""
 
+import pytest
+from openwellness_core.application.repositories import ParticipantRepository
+from openwellness_core.domain.models.participant import Participant
+
+from .conftest import TEST_ADMIN_ID
+
+
+@pytest.fixture(autouse=True)
+def _participants(fakes) -> None:
+    """Create binds study_id to the owner's Participant, so owners must exist."""
+    for pid in ("user-1", "u-9"):
+        fakes[ParticipantRepository].store[pid] = Participant(
+            id=pid, study_id="s-1", is_active=True
+        )
+
 
 def test_weight_owner_scoped_crud(client) -> None:
     # Create under user-1
-    r = client.post(
-        "/v1/users/user-1/weights",
-        json={"weight": 180.5},
-        headers={"X-Principal-Id": "test-principal"},
-    )
+    r = client.post("/v1/users/user-1/weights", json={"weight": 180.5})
     assert r.status_code == 201, r.text
     created = r.json()
     name = created["name"]
     assert name.startswith("users/user-1/weights/")
     weight_id = name.rsplit("/", 1)[1]
     assert created["owner"] == "user-1"
-    assert created["updatedBy"] == "test-principal"
+    assert created["studyId"] == "s-1"
+    assert created["updatedBy"] == TEST_ADMIN_ID
     assert created["createTime"].endswith("Z")
 
     # Get under user-1
@@ -61,11 +73,7 @@ def test_weight_owner_scoped_crud(client) -> None:
 def test_weight_response_has_resource_name_and_timestamps(client) -> None:
     """Confirm the response wire shape: ``name`` is the full resource path,
     ``createTime`` / ``updateTime`` are RFC-3339 strings."""
-    r = client.post(
-        "/v1/users/u-9/weights",
-        json={"weight": 180.0},
-        headers={"X-Principal-Id": "tester"},
-    )
+    r = client.post("/v1/users/u-9/weights", json={"weight": 180.0})
     body = r.json()
     assert body["name"].startswith("users/u-9/weights/")
     assert body["createTime"].endswith("Z")

@@ -22,6 +22,8 @@ from openwellness_core.adapters.mongo.repositories.mongo_user_repository import 
 )
 from openwellness_core.domain.models.user import User
 
+from .conftest import TEST_ADMIN_ID, token_for
+
 _DRIVER_DETAIL = "mongo-host-detail down"
 
 
@@ -53,7 +55,12 @@ def mongo_repo(app: FastAPI) -> MongoUserRepository:
 @pytest.fixture
 def down_client(app: FastAPI) -> TestClient:
     _use_repo(app, _DownDb())
-    return TestClient(app, raise_server_exceptions=False)
+    token = token_for(app, user_id=TEST_ADMIN_ID, roles=["admin"])
+    return TestClient(
+        app,
+        raise_server_exceptions=False,
+        headers={"Authorization": f"Bearer {token}"},
+    )
 
 
 def test_malformed_id_returns_404(client: TestClient, mongo_repo: Any) -> None:

@@ -9,7 +9,7 @@ hand-rolled ``app.state.repos`` map.
 
 import logging
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from dependency_injector import providers
 from fastapi import FastAPI
@@ -92,9 +92,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         container.unwire()
 
 
-def create_app() -> FastAPI:
-    settings = APISettings()
-    app = FastAPI(title=settings.title, lifespan=lifespan)
+def create_app(
+    *, lifespan: Any = lifespan, settings: APISettings | None = None
+) -> FastAPI:
+    settings = settings or APISettings()
+    # openapi_url too: with only the two UI urls off, /openapi.json is still served.
+    docs: dict[str, None] = (
+        {}
+        if settings.enable_docs
+        else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    )
+    app = FastAPI(title=settings.title, lifespan=lifespan, **docs)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,

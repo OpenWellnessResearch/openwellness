@@ -92,13 +92,16 @@ src/openwellness_api/
   (`collection/{id}` formatting).
 
 - **`deps/` — FastAPI dependencies.** `container.container_dep` binds a route
-  to a named repository provider. `principal.get_principal` resolves the
-  caller identity stamped onto writes: a verified `Authorization: Bearer`
-  access token yields an authenticated principal (roles + participant);
-  otherwise it degrades to the legacy `X-Principal-Id` header or `anonymous`
-  without ever raising. `principal.require_principal` is the strict variant
-  for sensitive routes — it 401s only when `API_AUTH_ENFORCE_PRINCIPAL` is
-  enabled.
+  to a named repository provider. `principal.get_principal` verifies the
+  `Authorization: Bearer` access token and returns the caller (roles,
+  participant, coach studies); a missing or invalid token is a 401, with no
+  fallback identity.
+
+- **`authz/` — authorization.** `policy.POLICY` is the table mirroring
+  [ADR 0007](../../docs/adr/0007-authorization-policy-table.md), and
+  `engine.authorize(module, op)` is the dependency every resource route
+  carries. On owner-scoped routes the `{user}` path segment holds a
+  participant id, not a user id (ADR 0005).
 
 - **`errors/` — error mapping.** `handlers.register_exception_handlers` maps
   core's domain and adapter exceptions (e.g.
@@ -155,13 +158,14 @@ the `API_*` variables are API-only knobs.
 | `MONGO_URL` | `mongodb://localhost:27017` | Mongo connection string. |
 | `MONGO_DB` | `openwellness` | Mongo database name. |
 | `API_TITLE` | `OpenWellness API` | OpenAPI title. |
+| `API_ENABLE_DOCS` | `false` | Serve `/docs`, `/redoc` and `/openapi.json`. Leave off on a deployed instance. |
 | `API_DEFAULT_PAGE_SIZE` | `50` | Page size used when a list request omits `page_size`. |
 | `API_MAX_PAGE_SIZE` | `1000` | Upper bound on a requested `page_size`. |
 | `API_TIME_RANGE_MAX_SPAN_DAYS` | `7` | Max window (days) for time-series list queries. |
 | `API_CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated browser origins allowed by CORS (dashboard SPA). |
 
 Auth adds three more setting groups — `API_AUTH_*` (JWT secret/TTLs, OTP
-length/TTL, rate limits, `API_AUTH_ENFORCE_PRINCIPAL`), `REDIS_*` (OTP and
+length/TTL, rate limits), `REDIS_*` (OTP and
 rate-limit store), and `SMTP_*` (login-code email delivery). See
 [`config.py`](src/openwellness_api/config.py) for the full list and defaults.
 
@@ -209,7 +213,7 @@ uv run uvicorn openwellness_api.main:app --reload
 Useful endpoints:
 
 - `GET /healthz` — liveness probe (`{"status": "ok"}`).
-- `GET /docs` — interactive OpenAPI docs.
+- `GET /docs` — interactive OpenAPI docs (only when `API_ENABLE_DOCS` is on).
 - `GET /v1/...` — the resource collections (e.g. `GET /v1/users`,
   `POST /v1/users/{user}/weights`).
 - `POST /v1/auth:sendLoginCode` — start an email-OTP login.
