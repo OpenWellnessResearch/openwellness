@@ -456,6 +456,41 @@ def test_registration_with_conflicting_pid_is_uniform_400(ctx: _Ctx) -> None:
     assert not user.verified_id  # nothing persisted
 
 
+def test_send_registration_staff_user_silent(ctx: _Ctx) -> None:
+    _set_roles(ctx, UNVERIFIED_USER_ID, {"coach": {"studies": ["study-a"]}})
+
+    outcome = ctx.service.send_registration_code(
+        email="attacker@example.com",
+        participant_id=UNVERIFIED_PARTICIPANT_ID,
+        ip="9.9.9.9",
+    )
+
+    assert outcome.message == errors.UNIFORM_SEND_MESSAGE
+    assert ctx.email.last_code("attacker@example.com") is None
+
+
+def test_verify_registration_user_turned_staff_is_uniform_400(ctx: _Ctx) -> None:
+    from fastapi import HTTPException
+
+    ctx.service.send_registration_code(
+        email=UNVERIFIED_EMAIL,
+        participant_id=UNVERIFIED_PARTICIPANT_ID,
+        ip="1.2.3.4",
+    )
+    code = ctx.email.last_code(UNVERIFIED_EMAIL)
+    assert code is not None
+    _set_roles(ctx, UNVERIFIED_USER_ID, {"admin": {}})
+
+    with pytest.raises(HTTPException) as ei:
+        ctx.service.verify_registration_code(email=UNVERIFIED_EMAIL, code=code)
+
+    status, _ = _http_status_detail(ei)
+    assert status == 400
+    user = ctx.user_repo.get_by_id(UNVERIFIED_USER_ID)
+    assert user is not None
+    assert user.email == UNVERIFIED_EMAIL and not user.verified_id
+
+
 def test_verify_registration_wrong_code_uniform_400(ctx: _Ctx) -> None:
     from fastapi import HTTPException
 

@@ -443,7 +443,10 @@ class AuthService:
         # Now decide eligibility from the gathered results.
         if participant is None or not participant.user_id:
             return None
-        if user is None or user.verified_id:
+        # Staff sign in without registering, so a falsy verified_id does not mean
+        # "unclaimed" for them; registering would hand their roles to whoever
+        # knows the linked participant id.
+        if user is None or user.verified_id or self._is_staff(user):
             return None
         # Email must not already belong to a DIFFERENT verified account.
         for owner in owners:
@@ -476,7 +479,7 @@ class AuthService:
         # and still be unregistered (a concurrent registration would have set
         # verified_id); the participant must still exist.
         user = self._user_repo.get_by_id(user_id) if user_id else None
-        if user is None or user.verified_id:
+        if user is None or user.verified_id or self._is_staff(user):
             raise errors.invalid_code()
         participant = (
             self._participant_repo.get_by_id(participant_id)
