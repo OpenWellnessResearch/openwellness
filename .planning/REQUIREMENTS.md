@@ -25,7 +25,7 @@
 - [x] **AUTH-06**: Audit fields (`updated_by`, etc.) come only from the verified token; the `X-Principal-Id` header is ignored
 - [ ] **AUTH-07**: Access tokens carry a `kid` header and are signed with an asymmetric key (EdDSA default); the API publishes a JWKS endpoint
 - [ ] **AUTH-08**: Concurrent refresh with the same refresh token within a short grace window does not trigger reuse-detection logout
-- [ ] **AUTH-09**: Dashboard and mobile clients keep working end to end against the enforced API
+- [ ] **AUTH-09**: Dashboard and mobile clients keep working end to end against the enforced API (the dashboard is proven by sign-in, session restore and sign-out; D-11 deviation, developer-accepted 2026-11-04)
 
 ### Postgres Datastore
 

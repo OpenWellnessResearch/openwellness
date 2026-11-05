@@ -4,10 +4,10 @@ current_phase: 02
 current_phase_name: Route Authentication & Authorization
 status: executing
 stopped_at: Completed 02-11-PLAN.md
-last_updated: "2026-11-04T23:58:48.890Z"
+last_updated: "2026-11-05T00:06:38.702Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 02 execution started
-state_head: a1d4d4a1a37225a27d658abded113d6affafed5b
+state_head: 0d94c530f9d0b06c410dd9eb896d38a8dc075ae2
 progress:
   total_phases: 12
   completed_phases: 1
@@ -129,8 +129,6 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 2]: Duplicate-email `POST /v1/users` is an email-existence oracle (409) until route auth lands; accepted in ADR 0007, must close in Phase 2
-- [Phase 2]: Fitbit rows still return `access_token`/`refresh_token` to any caller; ADR 0007 requires the response filter for non-admins
 - [Phase 6]: Conversation and participant-group membership predicate (ADR 0005 open point) must be defined before their Sync Stream rules
 - [Phase 4]: The Postgres refresh-session store must honor the refresh grace window from Phase 3 (cover it in the contract suite)
 - [Phase 6]: PowerSync Postgres bucket storage is Beta; spike it, with a second postgres container as fallback
